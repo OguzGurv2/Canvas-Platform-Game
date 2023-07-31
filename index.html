@@ -1,0 +1,149 @@
+<!DOCTYPE html5>
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Platform Jumper</title>
+
+<body>
+    <section>
+        <g class="container">
+            <div class="interface">
+                <p class="score">Score: <a>0</a></p>
+                <p class="time">Time: <a>0s</a></p>
+            </div>
+            <canvas id="game-canvas" width="500" height="500"></canvas>
+        </g>
+    </section>
+</body>
+
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=REM:wght@800&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
+
+    html {
+        font-family: 'Raleway', sans-serif;
+        font-family: 'REM', sans-serif;
+        padding: 0;
+        margin: 0;
+        border: 0;
+        background-color: var(--background);
+        height: 100vh;
+    }
+
+    :root {
+        --text: #0b090a;
+        --background: #f8f6f7;
+        --primary: #678378;
+        --secondary: #e0d7db;
+        --accent: #678378;
+    }
+
+    .container {
+        justify-content: center;
+        align-items: center;
+    }
+
+    canvas {
+        background-color: var(--secondary);;
+        z-index: 1;
+    }
+
+    .interface {
+        margin: 10px 10px;
+        width: 100px;
+        height: 50px;
+        color: var(--primary);
+        display: flex;
+        flex-direction: column;
+        z-index: 2;
+        position: absolute;
+    }
+
+    .interface p {
+        margin-block: 5px;
+    }
+
+</style>
+
+<script>
+    const canvas = document.getElementById("game-canvas");
+    const ctx = canvas.getContext("2d");
+
+    const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary');
+    var rightPressed = false;
+    var leftPressed = false;
+    var x = canvas.width / 2;
+    var y = canvas.height - 30;
+    let count = 0;
+
+    const rectWidth = 25;
+    const rectHeight = 25;
+    let rectX = (canvas.width - rectWidth) / 2;
+    let rectY = 475;
+
+    document.addEventListener("keydown", keyDownHandler, false);
+    document.addEventListener("keyup", keyUpHandler, false)
+
+    function keyDownHandler(e) {
+        if (e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = true;
+        }
+        else if (e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = true;
+        }
+    };
+
+    function keyUpHandler(e) {
+        if (e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = false;
+        }
+        else if (e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = false;
+        };
+    };
+
+    function drawRect() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = primary;
+        ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+    };
+
+    function jump() {
+        rectY -= 5;
+        count += 1;
+
+        console.log(count);
+        jumpManager();
+    };
+
+    function fall() {
+        rectY += 5;
+        count += 1;
+
+        console.log(count);
+        jumpManager();
+    }
+
+    function jumpManager() {
+        if (count === 10 && jumpInt) {
+            clearInterval(jumpInt);
+            count -= 10;
+            setInterval(fallInt);
+        }
+    }
+
+    function gameStart() {
+        drawRect();
+
+        if (rightPressed &&rectX < canvas.width -rectWidth) {
+           rectX += 7;
+        }
+        else if (leftPressed &&rectX > 0) {
+           rectX -= 7;
+        };
+    };
+
+    var interval = setInterval(gameStart, 10);
+    var jumpInt = setInterval(jump, 100);
+    var fallInt = setInterval(fall, 100);
+    clearInterval(fallInt);
+    
+</script>
