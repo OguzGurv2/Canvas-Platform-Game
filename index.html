@@ -1,15 +1,18 @@
 <!DOCTYPE html5>
 <!DOCTYPE html>
 <meta charset="utf-8">
-<title>Platform Jumper</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Arena Jumper</title>
 
 <body>
     <section class="container">      
-        <div class="interface">
+        <!-- <div class="interface">
             <p class="score">Score: <a>0</a></p>
             <p class="time">Time: <a>0s</a></p>
+        </div> -->
+        <div class="canvas-container">
+            <canvas id="game-canvas"></canvas>     
         </div>
-        <canvas id="game-canvas" width="400" height="300"></canvas>     
     </section>
 </body>
 
@@ -39,12 +42,18 @@
         justify-content: center;
     }
 
-    canvas {
-        background-color: var(--secondary);
-        position: static;
+    .canvas-container {
+        width: 100%;
+        max-width: 600px;
     }
 
-    .interface {
+    canvas {
+        width: 100%;
+        height: auto;
+        background-color: var(--secondary);
+    }
+
+    /* .interface {
         margin: 10px 10px;
         width: 100px;
         height: 50px;
@@ -54,7 +63,7 @@
         background: none;  
         position: absolute;
         left: 250px;  
-    }
+    } */
 
     .interface p {
         margin-block: 5px;
@@ -63,39 +72,44 @@
     </style>
 
 <script>
+    
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext("2d");
-    
+    const canvasContainer = document.querySelector('.canvas-container');
+
     const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary');
     const text = getComputedStyle(document.documentElement).getPropertyValue('--text');
     
     const player = {
-        x: (canvas.width - 10) / 2,
-        y: 190,
+        x: canvas.width,
+        y: 90,
         width: 10,
-        height: 10,
+        height: 20,
         speedX: 0,
         speedY: 0,
         isJumping: false
     };  
     
     const camera = {
-        x: 0,
         y: 0,
+        x: 0,
         width: canvas.width,
-        height: canvas.height,
+        height: canvasContainer.clientHeight,
     };
 
     const moveStrength = 2;
-    const jumpStrength = 3;
+    const jumpStrength = 4;
     const jumpDuration = 10; 
     let jumpFrame = 0; 
     
     const gravity = 0.1;
     
     const platforms = [
-        { x: (canvas.width - 25) / 2, y: 200, width: 25, height: 3 },
-        { x: (canvas.width - 250) / 2, y: 150, width: 25, height: 3 }
+        { x: canvas.width - (25 / 2), y: 100, width: 25, height: 3 },
+        { x: canvas.width - 100, y: 0, width: 25, height: 3 },
+        { x: canvas.width - 50, y: -50, width: 25, height: 3 },
+        { x: canvas.width -  200, y: -100, width: 25, height: 3 },
+        { x: canvas.width, y: -150, width: 25, height: 3 },
     ];
     
     const keys = {};
@@ -107,6 +121,26 @@
         keys[event.key] = false;
     });
     
+    function resizeCanvas() {
+        canvas.width = canvasContainer.clientWidth;
+        canvas.height = canvasContainer.clientHeight;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', resizeCanvas);
+
+    function drawPlayer () {
+        ctx.fillStyle = text;
+        ctx.fillRect(player.x, player.y - camera.y, player.width, player.height);
+    };
+
+    function drawPlatforms() {
+        ctx.fillStyle = primary;
+        platforms.forEach(platform => {
+            ctx.fillRect(platform.x - camera.x, platform.y - camera.y, platform.width, platform.height);
+        });
+    };
+
     function checkCollision(rect1, rect2) {
         return rect1.x < rect2.x + rect2.width &&
         rect1.x + rect1.width > rect2.x &&
@@ -114,18 +148,22 @@
         rect1.y + rect1.height > rect2.y;
     };
 
-    function restartGame() {
-        player.x = (canvas.width - 10) / 2;
-        player.y = 190;
+    function deletePlatform(platform, index) {
+        ctx.clearRect(platform.x, platform.y, platform.width, platform.height);
+        platforms.splice(index, 1);
     };
-    
+
     function update() {
         
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
         player.speedY += gravity;
         
         player.x += player.speedX;
         player.y += player.speedY;
         
+        camera.y = player.y - canvas.height / 2;
+
         if (keys['ArrowLeft']) {
             player.speedX = -moveStrength;
         } else if (keys['ArrowRight']) {
@@ -150,25 +188,17 @@
             player.isJumping = false;
         }
 
-        camera.y = player.y - canvas.height / 2;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = text;
-        ctx.fillRect(player.x - camera.x, player.y - camera.y, player.width, player.height);
-
-        ctx.fillStyle = primary;
-        platforms.forEach(platform => {
-            ctx.fillRect(platform.x - camera.x, platform.y - camera.y, platform.width, platform.height);
+        platforms.forEach((platform, index) => {
+            if ( (camera.height + camera.y) < platform.y) {
+                deletePlatform(platform, index);
+            }
         });
 
-        if (player.y + player.height > canvas.height) {
-            restartGame();
-        }
-
+        drawPlayer();
+        drawPlatforms();
         requestAnimationFrame(update);
-    }
+    };
 
     update();
-
+    resizeCanvas(); 
 </script>
