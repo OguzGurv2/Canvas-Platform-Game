@@ -6,13 +6,13 @@
 
 <body>
     <section class="container">      
-        <!-- <div class="interface">
-            <p class="score">Score: <a>0</a></p>
-            <p class="time">Time: <a>0s</a></p>
-        </div> -->
-        <div class="canvas-container">
-            <canvas id="game-canvas"></canvas>     
-        </div>
+            <div class="canvas-container">
+                <canvas id="game-canvas"></canvas>     
+            </div>
+                <div class="interface none">
+                    <p class="score">Score: <a id="score">0</a></p>
+                    <p class="time">Time: <a id="time">0</a>s</p>
+                </div>
     </section>
 </body>
 
@@ -53,22 +53,39 @@
         background-color: var(--secondary);
     }
 
-    /* .interface {
-        margin: 10px 10px;
+    .interface {
         width: 100px;
         height: 50px;
         color: var(--primary);
         display: flex;
         flex-direction: column;
         background: none;  
-        position: absolute;
-        left: 250px;  
-    } */
+        position: relative;
+        right: 575px;
+    }
+
+    #start-button {
+        position: relative;
+        background-color: var(--primary);
+        color: var(--secondary);
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        height: 50px;
+        width: 100px;
+        font-family: 'REM', sans-serif;
+        right: 350px;
+        top: 350px;
+    }
 
     .interface p {
         margin-block: 5px;
     }
     
+    .none {
+        display: none;
+    }
+
     </style>
 
 <script>
@@ -129,7 +146,11 @@
     window.addEventListener('resize', resizeCanvas);
     window.addEventListener('orientationchange', resizeCanvas);
 
-    function drawPlayer () {
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    function drawPlayer() {
         ctx.fillStyle = text;
         ctx.fillRect(player.x, player.y - camera.y, player.width, player.height);
     };
@@ -153,9 +174,21 @@
         platforms.splice(index, 1);
     };
 
-    function update() {
+    let minValue = Infinity;
+
+    function updateMinValue(newValue) {
+        minValue = Math.min(minValue, newValue);
+    };
+
+    var time;
+    var gameRunning = false;
+    const startButton = document.querySelector('#start-button');
+    
+    function gameOver() {
         
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    };
+
+    function update() {
 
         player.speedY += gravity;
         
@@ -166,11 +199,19 @@
 
         if (keys['ArrowLeft']) {
             player.speedX = -moveStrength;
+
         } else if (keys['ArrowRight']) {
             player.speedX = moveStrength;
+
         } else {
             player.speedX = 0;
         }
+        if (player.x < 0) {
+            player.x = 0;  
+        };
+        if (player.x + player.width > canvas.width) {
+            player.x = canvas.width - player.width;
+        };
 
         platforms.forEach(platform => {
             if (checkCollision(player, platform)) {
@@ -183,6 +224,7 @@
         if (player.isJumping && jumpFrame < jumpDuration) {
             player.speedY = -jumpStrength;
             jumpFrame++;
+            updateMinValue(player.y);
         } else {
             jumpFrame = 0;
             player.isJumping = false;
@@ -194,6 +236,11 @@
             }
         });
 
+        if (minValue - ((camera.y - player.y) / 2) < player.y) {
+            gameOver();
+        }
+        
+        clearCanvas();
         drawPlayer();
         drawPlatforms();
         requestAnimationFrame(update);
