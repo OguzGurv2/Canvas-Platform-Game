@@ -6,16 +6,13 @@
 
 <body>
     <section class="container">      
-            <div class="canvas-container">
-                <canvas id="game-canvas"></canvas>     
+        <canvas id="game-canvas"></canvas>     
+        <div class="interface none">
+            <div id="health">
             </div>
-                <!-- <div class="interface none">
-                    <p id="countdown">03:00</p>
-                    <div id="health">
-                    </div>
-                    <p id="score">0</p>
-                </div> -->
-                <button id="start-button">Start</button>
+            <p id="score">0</p>
+        </div>
+        <button id="start-button">Start</button>
     </section>
 </body>
 
@@ -45,12 +42,6 @@
         justify-content: center;
     }
 
-    .canvas-container {
-        width: 100%;
-        max-width: 600px;
-        justify-self: center;
-    }
-
     canvas {
         width: 100%;
         height: auto;
@@ -65,7 +56,7 @@
         flex-direction: column;
         background: none;  
         position: absolute;
-        left: 30%;
+        left: 5%;
     }
 
     #start-button {
@@ -97,47 +88,57 @@
     
     const canvas = document.getElementById('game-canvas');
     const ctx = canvas.getContext("2d");
-    const canvasContainer = document.querySelector('.canvas-container');
+    const width = window.innerWidth;
+    const height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+
+    const canvasAspectRatio = canvas.width / canvas.height;
+    const radius = Math.min(width, height) * 0.025;
 
     const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary');
     const text = getComputedStyle(document.documentElement).getPropertyValue('--text');
+
+    let score = 0;
+    const scoreUI = document.querySelector('#score');
     
     const player = {
-        x: (canvasContainer.clientWidth / 2) - 10,
-        y: 90,
+        x: (width / 2),
+        y: (height / 2) - 40,
         width: 15,
         height: 30,
         speedX: 0,
         speedY: 0,
-        isJumping: false
+        isJumping: false,
+        radius: Math.sqrt(15 * 30 + 15 * 30) / 2
     };  
     
     const camera = {
         y: 0,
         x: 0,
-        width: canvasContainer.clientWidth,
-        height: canvasContainer.clientHeight,
+        width: width,
+        height: height,
     };
 
     const moveStrength = 3;
-    const jumpStrength = 5;
-    const jumpDuration = 10; 
+    const jumpStrength = 3;
+    const jumpDuration = 20; 
     let jumpFrame = 0; 
     
     const gravity = 0.1;
     
     const platforms = [
-        { x: (canvasContainer.clientWidth - 50) / 2, y: 125, width: 25, height: 10 },
-        { x: (canvasContainer.clientWidth - 200) / 2, y: 0, width: 25, height: 10 },
-        { x: (canvasContainer.clientWidth + 150) / 2, y: -25, width: 50, height: 10 },
-        { x: (canvasContainer.clientWidth + 250) / 2, y: -175, width: 25, height: 10 },
-        { x: (canvasContainer.clientWidth - 125) / 2, y: -200, width: 25, height: 10 },
-        { x: (canvasContainer.clientWidth + 70) / 2, y: -300, width: 50, height: 10 },
-        { x: (canvasContainer.clientWidth - 245) / 2, y: -350, width: 25, height: 10 },
-        { x: (canvasContainer.clientWidth - 35) / 2, y: -500, width: 25, height: 10 },
-        { x: (canvasContainer.clientWidth - 35) / 2, y: -500, width: 25, height: 10 },
-        { x: (canvasContainer.clientWidth - 245) / 2, y: -675, width: 25, height: 10 }, 
-        { x: (canvasContainer.clientWidth / 2), y: -700, width: 25, height: 10 },
+        { x: (width / 2) - 14, y: (height / 2), width: 25, height: 5 },
+        { x: (width - 350) / 2, y: (height / 2) - 80, width: 25, height: 5, enemy: true },
+        { x: (width + 150) / 2, y: (height / 2) - 100, width: 50, height: 5 },
+        { x: (width - 75) / 2, y: (height / 2) - 180, width: 25, height: 5, coin: true, coinRadius: radius , coinStartAngle: 0, coinEndAngle: Math.PI * 2 },
+        { x: (width - 400) / 2, y: (height / 2) - 200, width: 25, height: 5 },
+        { x: (width + 200) / 2, y: (height / 2) - 220, width: 50, height: 5 },
+        { x: (width - 250) / 2, y: (height / 2) - 270, width: 25, height: 5 },
+        { x: (width + 100) / 2, y: (height / 2) - 300, width: 25, height: 5, coin: true, coinRadius: radius , coinStartAngle: 0, coinEndAngle: Math.PI * 2 },
+        { x: (width - 35) / 2, y: (height / 2) - 350, width: 25, height: 5 },
+        { x: (width - 350) / 2, y: (height / 2) - 370, width: 25, height: 5, enemy: true }, 
+        { x: (width + 200) / 2, y: (height / 2) - 400, width: 25, height: 5 },
         // { x: canvas.width + 180, y: -800, width: 50, height: 10 },
         // { x: canvas.width - 180 , y: -800, width: 75, height: 10 },
         // { x: canvas.width + 140, y: -950, width: 50, height: 10 },
@@ -147,12 +148,12 @@
         // { x: canvas.width + 250, y: -1300, width: 50, height: 10 },
         // { x: canvas.width - 250, y: -1350, width: 75, height: 10 },
     ];
-        
+
     let platformContainer = [];
 
-    // const coins = [
-    //     { coinX: canvas.width - 10, coinY: 110, coinRadius: 10, coinStartAngle: 0, coinEndAngle: 2 * Math.PI },
-    // ];
+    let coinContainer = [];
+
+    let enemyContainer = [];
     
     const keys = {};
     window.addEventListener('keydown', (event) => {
@@ -162,14 +163,6 @@
     window.addEventListener('keyup', (event) => {
         keys[event.key] = false;
     });
-    
-    window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('orientationchange', resizeCanvas);
-
-    function resizeCanvas() {
-        canvas.width = canvasContainer.clientWidth;
-        canvas.height = canvasContainer.clientHeight;
-    };
 
     function clearCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -183,43 +176,108 @@
     function drawPlatforms() {
         ctx.fillStyle = primary;
         platformContainer.forEach(platform => {
-            ctx.fillRect(platform.x - camera.x, platform.y - camera.y, platform.width, platform.height);
+            ctx.fillRect(platform.x, platform.y - camera.y, platform.width, platform.height);
         });
     };
 
-    // function drawCoins() {
-        
-    //     coins.forEach(coin => {
-    //         ctx.beginPath();
-    //         ctx.arc(coin.x - camera.x, coin.y - camera.y, coin.radius, coin.startAngle, coin.endAngle);
-    //         ctx.fillStyle = primary;
-    //         ctx.fill();
-    //         ctx.closePath();
-    //     });
-    // };
+    function drawCoins() {
+        coinContainer.forEach(coin => {
+            ctx.beginPath();
+            ctx.arc(coin.x + coin.width / 2, (coin.y - 10) - camera.y, coin.coinRadius, coin.coinStartAngle, coin.coinEndAngle);
+            ctx.fillStyle = primary;
+            ctx.fill();
+            ctx.closePath();
+        })
+    };
 
-    function checkCollision(rect1, rect2) {
+    function drawEnemies() {
+        ctx.fillStyle = text;
+        enemyContainer.forEach(enemy => {
+            ctx.fillRect(enemy.x + 5, (enemy.y - 30) - camera.y, player.width, player.height);
+        });
+    };
+
+    function platformCollisionDetection(rect1, rect2) {
         return rect1.x < rect2.x + rect2.width &&
         rect1.x + rect1.width > rect2.x &&
         rect1.y < rect2.y + rect2.height &&
         rect1.y + rect1.height > rect2.y;
     };
 
+    function coinCollisionDetection(rect, circle) {
+
+        const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+        const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+
+        const distanceX = circle.x - closestX;
+        const distanceY = circle.y - closestY;
+
+        const distanceSquared = distanceX * distanceX + distanceY * distanceY;
+        const radiusSquared = circle.coinRadius * circle.coinRadius;
+
+        if (distanceSquared <= radiusSquared) {
+
+            if (closestX === rect.x || closestX === rect.x + rect.width ||
+                closestY === rect.y || closestY === rect.y + rect.height) {
+                return true;
+            }
+
+            if (distanceSquared <= radiusSquared / 2) {
+                return true;
+            }
+
+            if (distanceX === 0 && Math.abs(distanceY) <= circle.coinRadius ||
+                distanceY === 0 && Math.abs(distanceX) <= circle.coinRadius) {
+                return true;
+            }
+        }
+
+        return false;
+    };
+
+    function enemyCollisionDetection(rect1, rect2) {
+        return (
+            rect1.x < rect2.x + rect2.width &&
+            rect1.x + rect1.width > rect2.x &&
+            rect1.y < rect2.y + rect2.height &&
+            rect1.y + rect1.height > rect2.y
+        );
+    };
+
     var lowestPlatform;
     function findLowestPlatform() {
         lowestPlatform = platformContainer.reduce((max, platform) => {
-            return platform.y > max ? platform : max;
+            return platform.y > max ? platform : max; 
         }, -Infinity);
     };
 
-    function deletePlatform(platform, index) {
-        ctx.clearRect(platform.x, platform.y, platform.width, platform.height);
+    function deletePlatform(platform1, index) {
+        if (platform1.enemy) {
+            let index;
+            index = platformContainer.findIndex(platform2 => platform1.x === platform2.x && platform1.y === platform2.y); 
+            deleteEnemy(index);
+        };
         platformContainer.splice(index, 1);
     };
 
-    function respawn(platform) {
-        player.y = platform.y - 50;
-        player.x = platform.x + 15;
+    function deleteCoin(index) {
+        coinContainer.splice(index, 1);
+    };
+
+    function deleteEnemy(index) {
+        enemyContainer.splice(index, 1);
+    }
+
+    function respawn(platform1) {
+
+        if (platform1.enemy) {
+            let index;
+            index = platformContainer.findIndex(platform2 => platform1.x === platform2.x && platform1.y === platform2.y); 
+            deleteEnemy(index);
+        };
+
+        player.y = platform1.y - 50;
+        player.x = platform1.x + 5;
         isRunning = true;
     };
 
@@ -229,10 +287,6 @@
         minValue = Math.min(minValue, newValue);
     };
 
-    let countdownDuration = 180000;
-    let startTime;
-    const countdown = document.querySelector('#countdown');
-
     let respawnCount = 0;
     var isRunning = false;
 
@@ -240,18 +294,23 @@
     const startButton = document.querySelector('#start-button');
 
     startButton.addEventListener('click', () => {
-        resizeCanvas();
         startButton.classList.add('none');
-        // interface.classList.remove('none');
+        interface.classList.remove('none');
         
         isRunning = true;
-        player.x = (canvas.width - 35) / 2;
-        player.y = 90;
+        player.x = (width / 2) - 7.5,
+        player.y = (height / 2) - 40,
         
         minValue = Infinity;
 
         platforms.forEach(platform => {
+
             platformContainer.push(platform);
+            if (platform.coin) {
+                coinContainer.push(platform);
+            } else if (platform.enemy) {
+                enemyContainer.push(platform);
+            };
         });
         
         update();
@@ -270,6 +329,8 @@
         clearCanvas();
         drawPlayer();
         drawPlatforms();
+        drawCoins();
+        drawEnemies();
 
         player.speedY += gravity;
         
@@ -296,11 +357,30 @@
 
 
         platformContainer.forEach(platform => {
-            if (checkCollision(player, platform)) {
+            if (platformCollisionDetection(player, platform)) {
                 player.isJumping = true;
                 jumpFrame = 0;
                 player.speedY = -jumpStrength;
+            }  
+        });
+
+        coinContainer.forEach((coin, index) => {
+            if (coinCollisionDetection(player, coin)) {
+                score += 10;
+                scoreUI.textContent = `${score}`;
+                deleteCoin(index);
             }
+        });
+
+        enemyContainer.forEach(enemy => {
+            if (enemyCollisionDetection(player, enemy)) {
+                isRunning = false;
+                respawnCount ++;
+
+                if ( respawnCount < 3 ) {
+                    respawn(lowestPlatform);
+                };
+            }  
         });
 
         if (player.isJumping && jumpFrame < jumpDuration) {
@@ -312,16 +392,16 @@
             player.isJumping = false;
         }
 
-        platformContainer.forEach((platform, index) => {
-            if ( (camera.height + camera.y) < platform.y) {
-                deletePlatform(platform, index);
+        platformContainer.forEach((platform1, index) => {
+            if ( (camera.height + camera.y) < platform1.y) {
+                deletePlatform(platform1, index);
             }
         });
 
         if (minValue - ((camera.y - player.y)) < player.y) {
             isRunning = false;
-            respawnCount += 1;
-            console.log(respawnCount);
+            respawnCount ++;
+
             if ( respawnCount < 3 ) {
                 respawn(lowestPlatform);
             };
@@ -334,11 +414,9 @@
             gameOver();
         }
 
-        // drawCoins();
         findLowestPlatform();
     };
 
-    resizeCanvas(); 
 </script>
 
 <!-- <svg id="original-svg" class="none" width="100" height="100" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
