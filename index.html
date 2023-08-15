@@ -99,18 +99,28 @@
     const height = window.innerHeight;
     canvas.width = width;
     canvas.height = height;
-
+    
     const canvasAspectRatio = canvas.width / canvas.height;
     const radius = Math.min(width, height) * 0.025;
-
+    
     const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary');
     const text = getComputedStyle(document.documentElement).getPropertyValue('--text');
 
+    const interface = document.querySelector('.interface');
+    const startButton = document.querySelector('#start-button');
+    
     let score = 0;
     const scoreUI = document.querySelector('#score');
-
+    
     const heartIcon = document.querySelector('#heart-icon');
     const svg = document.querySelector('svg');
+    
+    var isRunning = false;
+    let gravity = 0.1;
+    let jumpScore = 0;
+    let coinCount = 0;
+    let enemyCount = 0;
+    let hasCollided = false;
     
     const camera = {
         y: 0,
@@ -118,7 +128,16 @@
         width: width,
         height: height,
     };
-
+    
+    let lifeLeft = 3;
+    let jumpStrength = 3;
+    let jumpDuration = 20; 
+    let jumpFrame = 0;
+    let freezePlayer = false;
+    let trambolineUsed = false;
+    let isDragging = false;
+    let dragOffsetX = 0;
+    
     const player = {
         x: (width / 2) - 7.5,
         y: (height / 2) + 70, 
@@ -129,10 +148,6 @@
         isFlying: false,
     };  
     
-    let jumpStrength = 3;
-    let jumpDuration = 20; 
-    let jumpFrame = 0; 
-    
     let spearOffset = 7.5;
     const spear = {
         x: player.x - spearOffset,
@@ -140,24 +155,28 @@
         width: 5,
         height: 30,
     };
+    
+    let minValue;
+    var lowestPlatform;
+    const platformMoveStrength = 0.25;
+    const platformAnimDuration = 1000;
+    let platformAnimFrame = 0;
+    const particleMoveStrength = gravity * 10;
 
-    
-    let gravity = 0.1;
-    
     const platforms = [
         { id: 0, x: (width / 2) - 14, y: (height / 2) + 90, width: 25, height: 5 },
         { id: 1, x: (width - 350) / 2, y: (height / 2) + 70, width: 25, height: 5, booster: true },
         { id: 2, x: (width + 150) / 2, y: (height / 2) - 10, width: 50, height: 5 },
         { id: 3, x: (width - 75) / 2, y: (height / 2) - 90, width: 25, height: 5, coin: true },
-        { id: 4, x: (width - 400) / 2, y: (height / 2) - 110, width: 25, height: 5 },
+        { id: 4, x: (width - 400) / 2, y: (height / 2) - 110, width: 25, height: 5, breakCount: 0 },
         { id: 5, x: (width + 200) / 2, y: (height / 2) - 130, width: 50, height: 5, heart: true },
         { id: 6, x: (width - 250) / 2, y: (height / 2) - 180, width: 25, height: 5,  isMoving: true, particle: true },
         { id: 7, x: (width + 100) / 2, y: (height / 2) - 210, width: 25, height: 5, tramboline: true },
         { id: 8, x: (width - 35) / 2, y: (height / 2) - 260, width: 25, height: 5,  isMoving: true },
         { id: 9, x: (width - 250) / 2, y: (height / 2) - 280, width: 25, height: 5 }, 
-        { id: 10, x: (width + 190) / 2, y: (height / 2) - 310, width: 25, height: 5,  isMoving: true },
+        { id: 10, x: (width + 190) / 2, y: (height / 2) - 310, width: 25, height: 5 },
         { id: 11, x: (width) / 2, y: (height / 2) - 400, width: 25, height: 5},
-        { id: 12, x: (width - 100) / 2 , y: (height / 2) - 500, width: 50, height: 5,  isMoving: true },
+        { id: 12, x: (width - 100) / 2 , y: (height / 2) - 500, width: 50, height: 5 },
         { id: 13, x: (width - 200) / 2, y: (height / 2) - 600, width: 25, height: 5 },
         { id: 14, x: (width + 10) / 2, y: (height / 2) - 700, width: 25, height: 5 },
         { id: 15, x: (width + 50) / 2, y: (height / 2) - 800, width: 50, height: 5 },
@@ -166,11 +185,6 @@
         { id: 18, x: (width - 350) / 2, y: (height / 2) - 1100, width: 50, height: 5 },
     ];
 
-    const platformMoveStrength = 0.25;
-    const platformAnimDuration = 1000;
-    let platformAnimFrame = 0;
-
-    const particleMoveStrength = gravity * 10;
 
     const coinStats = {
         coinRadius: radius,
@@ -189,9 +203,7 @@
     };
 
     let platformContainer = [];
-
-    let freezePlayer = false;
-    let trambolineUsed = false;
+    
     let trambolineContainer = [];
 
     let boosterContainer = [];
@@ -204,8 +216,6 @@
 
     let particleContainer = [];
 
-    let isDragging = false;
-    let dragOffsetX = 0;
 
     function touchStart(event) {
         const tapX = event.touches[0].clientX - canvas.getBoundingClientRect().left;
@@ -240,8 +250,6 @@
     canvas.addEventListener('touchmove', touchMove, {passive: true});
     canvas.addEventListener('touchend', touchEnd, {passive: true});
 
-    let lifeLeft = 3;
-    
     function drawHeartIcons() {
         const cloneIcons = document.querySelectorAll('#clone');
         if (lifeLeft > 0) {
@@ -273,7 +281,11 @@
   
     function drawPlatforms() {
         platformContainer.forEach(platform => {
-            ctx.fillStyle = primary;
+            if (platform.breakCount) {
+              ctx.fillStyle = 'brown';  
+            } else {
+                ctx.fillStyle = primary;
+            };
             ctx.fillRect(platform.x, platform.y - camera.y, platform.width, platform.height);
         });
     };
@@ -417,19 +429,17 @@
     };
 
     function rectangularCollisionDetection(rect1, rect2) {
-        
         return rect1.x < rect2.x + rect2.width &&
         rect1.x + rect1.width > rect2.x &&
         rect1.y < rect2.y + rect2.height &&
         rect1.y + rect1.height > rect2.y;
-   
     };
 
     function platformCollisionDetection(rect1, rect2) {
         return rect1.y + rect1.height / 2 >= rect2.y &&
-         rect1.y + rect1.height / 2 <= rect2.y + rect2.height &&
-         rect1.x <= rect2.x + rect2.width && rect1.x + rect1.width >= rect2.x;
-    }
+        rect1.y + rect1.height / 2 <= rect2.y + rect2.height &&
+        rect1.x <= rect2.x + rect2.width && rect1.x + rect1.width >= rect2.x;
+    };
 
     function circularCollisionDetection(rect, circle) {
   
@@ -443,7 +453,6 @@
         return distance <= coinStats.coinRadius;
     };
 
-    var lowestPlatform;
     function findLowestPlatform() {
 
         const keyToExclude = ["isMoving", "particle"];
@@ -460,7 +469,7 @@
             return true;
         }
         return false;
-    }
+    };
 
     function deletePlatform(platform, index) {
 
@@ -532,6 +541,7 @@
     };
 
     function respawn() {
+
         freezePlayer = false;
         isDragging = false;
         trambolineUsed = false;
@@ -573,8 +583,6 @@
         lifeLeft --;
     };
 
-    let minValue;
-
     function updateMinValue(newValue) {
         minValue = Math.min(minValue, newValue);
     };
@@ -606,11 +614,6 @@
             };
         };
     };
-
-    var isRunning = false;
-
-    const interface = document.querySelector('.interface');
-    const startButton = document.querySelector('#start-button');
 
     startButton.addEventListener('click', () => {
         startButton.classList.add('none');
@@ -681,13 +684,9 @@
         heartContainer = [];
         boosterContainer = [];
     };
-    
-    let jumpScore = 0;
-    let coinCount = 0;
-    let enemyCount = 0;
-    let hasCollided = false;
 
     function update() {
+
         clearCanvas();
         drawPlayer();
         updatePlayer();
@@ -715,6 +714,14 @@
                 player.isJumping = true;
                 jumpFrame = 0;
                 player.speedY = -jumpStrength;
+                
+                if (platform.breakCount < 3) {
+
+                    platform.breakCount++;
+                    if (platform.breakCount === 2) {
+                        deletePlatform(platform, index);
+                    };
+                };
             };
             if (rectangularCollisionDetection(player, platform) && !player.isFlying && !player.isJumping) {
                 jumpStrength = 3;
@@ -723,6 +730,14 @@
                 player.isJumping = true;
                 jumpFrame = 0;
                 player.speedY = -jumpStrength;
+                
+                if (platform.breakCount < 3) {
+                    
+                    platform.breakCount++;
+                    if (platform.breakCount === 2) {
+                        deletePlatform(platform, index);
+                    };
+                };
             };
             if ( (camera.height + camera.y) < platform.y) {
                 deletePlatform(platform, index);
