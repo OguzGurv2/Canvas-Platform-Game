@@ -5,29 +5,32 @@
 <title>Arena Jumper</title>
 
 <body>
-    <section class="container">      
+    <div id="container">
         <canvas id="game-canvas"></canvas>     
-        <div class="interface none">
-            <div id="health">
-                <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512">
+        <div id="interface" class="none">
+             <div id="health">
+                <svg id="svg" xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512">
                     <path id="heart-icon" class="none" d="M47.6 300.4L228.3 469.1c7.5 7 17.4 10.9 27.7 10.9s20.2-3.9 27.7-10.9L464.4 300.4c30.4-28.3 47.6-68 47.6-109.5v-5.8c0-69.9-50.5-129.5-119.4-141C347 36.5 300.6 51.4 268 84L256 96 244 84c-32.6-32.6-79-47.5-124.6-39.9C50.5 55.6 0 115.2 0 185.1v5.8c0 41.5 17.2 81.2 47.6 109.5z"/>
                 </svg>
             </div>
-            <p id="score">0</p>
+            <p id="score" class="none">0</p>
         </div>
-        <button id="start-button">Start</button>
-    </section>
+        <button id="start-button">Tap to Start</button>
+    </div>
 </body>
 
 <style>
+
     @import url('https://fonts.googleapis.com/css2?family=REM:wght@800&family=Raleway:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap');
 
-    body {
-        font-family: 'Raleway', sans-serif;
-        font-family: 'REM', sans-serif;
+    * {
+        box-sizing: border-box;
         padding: 0;
         margin: 0;
-        border: 0;
+    }
+
+    body {
+        background: black;
     }
 
     :root {
@@ -38,47 +41,69 @@
         --accent: #678378;
     }
 
-    .container {
-        width: 100vw;
-        height: 100vh;
-        display: flex;
+    #container {
+        width: 100%;
+        height: 100%;
+        display: grid;
+        align-items: center;
         justify-content: center;
+    }   
+
+    #canvas-container {
+        width: fit-content;
+        height: fit-content;
     }
 
     canvas {
-        width: 100%;
-        height: auto;
-        background-color: var(--secondary);
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        max-width: 100%;
+        max-height: 100%;
+        z-index: 0;
+        width: auto;
+        background-color: var(--background);
     }
     
     svg {
         width: 100%;
     }
 
-    .interface {
+    #interface {
         width: 100px;
         height: 50px;
-        color: var(--text);
-        display: flex;
+        color: black;
         flex-direction: column;
         background: none;  
-        position: absolute;
-        left: 5%;
+        z-index: 1;
+        position: relative;
+        font-size: small;
+    }
+
+    #score {
+        font-family: 'REM', sans-serif;
+        font-size: small;
+        padding-left: 3%;
+    }
+
+    #health {
+        padding-right: 75%;
     }
 
     #start-button {
         position: absolute;
-        background-color: var(--primary);
-        color: var(--secondary);
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: var(--primary);
         border: none;
-        border-radius: 5px;
-        cursor: pointer;
-        height: 50px;
-        width: 100px;
+        background: none;
         font-family: 'REM', sans-serif;
-        justify-self: center;
-        align-self: center;
-        z-index: 1;
+        font-size: xx-large;
+        width: 100%;
+        height: 100%;
+        z-index: 2;
     }
 
     .interface p {
@@ -89,750 +114,1674 @@
         display: none;
     }
 
-    </style>
+    @media (max-width: 376px) {
+        #score {
+            padding-left: 3%;
+            font-size: smaller;
+        }
+
+        #health {
+            padding-right: 70%;
+            font-size: smaller;
+        }
+
+    }
+
+    @media (min-width: 1024px) {
+        #score {
+            padding-left: 2%;
+            font-size: small;
+        }
+
+        #health {
+            padding-right: 70%;
+            font-size: small;
+        }
+    }
+
+    @media (min-width: 1280px) {
+        #score {
+            padding-left: 2%;
+            font-size: small;
+        }
+
+        #health {
+            padding-right: 75%;
+            font-size: small;
+        }
+    }
+
+</style>
 
 <script>
-    
-    const canvas = document.getElementById('game-canvas');
-    const ctx = canvas.getContext("2d");
-    const width = window.innerWidth;
-    const height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-    
-    const canvasAspectRatio = canvas.width / canvas.height;
-    const radius = Math.min(width, height) * 0.025;
-    
-    const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary');
-    const text = getComputedStyle(document.documentElement).getPropertyValue('--text');
+    window.addEventListener('load', function(){
 
-    const interface = document.querySelector('.interface');
-    const startButton = document.querySelector('#start-button');
-    
-    let score = 0;
-    const scoreUI = document.querySelector('#score');
-    
-    const heartIcon = document.querySelector('#heart-icon');
-    const svg = document.querySelector('svg');
-    
-    var isRunning = false;
-    let gravity = 0.1;
-    let jumpScore = 0;
-    let coinCount = 0;
-    let enemyCount = 0;
-    let hasCollided = false;
-    
-    const camera = {
-        y: 0,
-        x: 0,
-        width: width,
-        height: height,
-    };
-    
-    let lifeLeft = 3;
-    let jumpStrength = 3;
-    let jumpDuration = 20; 
-    let jumpFrame = 0;
-    let freezePlayer = false;
-    let trambolineUsed = false;
-    let isDragging = false;
-    let dragOffsetX = 0;
-    
-    const player = {
-        x: (width / 2) - 7.5,
-        y: (height / 2) + 70, 
-        width: 15,
-        height: 30,
-        speedY: 0,
-        isJumping: false,
-        isFlying: false,
-    };  
-    
-    let spearOffset = 7.5;
-    const spear = {
-        x: player.x - spearOffset,
-        y: player.y - 20, 
-        width: 5,
-        height: 30,
-    };
-    
-    let minValue;
-    var lowestPlatform;
-    const platformMoveStrength = 0.25;
-    const platformAnimDuration = 1000;
-    let platformAnimFrame = 0;
-    const particleMoveStrength = gravity * 10;
+        //#region Globals
 
-    const platforms = [
-        { id: 0, x: (width / 2) - 14, y: (height / 2) + 90, width: 25, height: 5 },
-        { id: 1, x: (width - 350) / 2, y: (height / 2) + 70, width: 25, height: 5, booster: true },
-        { id: 2, x: (width + 150) / 2, y: (height / 2) - 10, width: 50, height: 5 },
-        { id: 3, x: (width - 75) / 2, y: (height / 2) - 90, width: 25, height: 5, coin: true },
-        { id: 4, x: (width - 400) / 2, y: (height / 2) - 110, width: 25, height: 5, breakCount: 0 },
-        { id: 5, x: (width + 200) / 2, y: (height / 2) - 130, width: 50, height: 5, heart: true },
-        { id: 6, x: (width - 250) / 2, y: (height / 2) - 180, width: 25, height: 5,  isMoving: true, particle: true },
-        { id: 7, x: (width + 100) / 2, y: (height / 2) - 210, width: 25, height: 5, tramboline: true },
-        { id: 8, x: (width - 35) / 2, y: (height / 2) - 260, width: 25, height: 5,  isMoving: true },
-        { id: 9, x: (width - 250) / 2, y: (height / 2) - 280, width: 25, height: 5 }, 
-        { id: 10, x: (width + 190) / 2, y: (height / 2) - 310, width: 25, height: 5 },
-        { id: 11, x: (width) / 2, y: (height / 2) - 400, width: 25, height: 5},
-        { id: 12, x: (width - 100) / 2 , y: (height / 2) - 500, width: 50, height: 5 },
-        { id: 13, x: (width - 200) / 2, y: (height / 2) - 600, width: 25, height: 5 },
-        { id: 14, x: (width + 10) / 2, y: (height / 2) - 700, width: 25, height: 5 },
-        { id: 15, x: (width + 50) / 2, y: (height / 2) - 800, width: 50, height: 5 },
-        { id: 16, x: (width - 50) / 2, y: (height / 2) - 900, width: 25, height: 5 },
-        { id: 17, x: (width - 75) / 2, y: (height / 2) - 1000, width: 25, height: 5 },
-        { id: 18, x: (width - 350) / 2, y: (height / 2) - 1100, width: 50, height: 5 },
-    ];
+        const canvas = document.querySelector('#game-canvas');
+        const ctx = canvas.getContext("2d");
 
+        const svg = document.querySelector('#svg');
 
-    const coinStats = {
-        coinRadius: radius,
-        coinStartAngle: 0, 
-        coinEndAngle: Math.PI * 2
-    };
+        const startButton = document.querySelector('#start-button');
+        const interface = document.querySelector('#interface');
+        const scoreUI = document.querySelector('#score');
+        const heartIcon = document.querySelector('#heart-icon');
 
-    const assetStats = {
-        width: 25, height: 25
-    };
+        const primary = getComputedStyle(document.documentElement).getPropertyValue('--primary');
+        const text = getComputedStyle(document.documentElement).getPropertyValue('--text');
+        
+        canvas.height = 800;
+        canvas.width = 400;
+        
+        interface.style.height = `${canvas.clientHeight} `;
+        interface.style.width = `${canvas.clientWidth} `;
 
-    const particleStats = {
-        particleRadius: radius/2,
-        particleStartAngle: 0, 
-        particleEndAngle: Math.PI * 2,
-    };
+        let jumpScore = 0;
+        let minValue;
+        var lowestPlatform;
 
-    let platformContainer = [];
-    
-    let trambolineContainer = [];
+        //#endregion
 
-    let boosterContainer = [];
+        //#region World 
 
-    let coinContainer = [];
-
-    let enemyContainer = [];
-    
-    let heartContainer = [];
-
-    let particleContainer = [];
-
-
-    function touchStart(event) {
-        const tapX = event.touches[0].clientX - canvas.getBoundingClientRect().left;
-
-        isDragging = true;
-        dragOffsetX = player.x - tapX;
-        offset = spear.x - player.x;
-    };
-
-    function touchMove(event) {
-        if (isDragging && !freezePlayer) {
-            const tapX = event.touches[0].clientX - canvas.getBoundingClientRect().left;
-
-            player.x = tapX + dragOffsetX;
-            spear.x = player.x - spearOffset;
-
-            if (player.x < 0) {
-                player.x += canvas.width;
-                spear.x += canvas.width;
-            } else if (player.x > canvas.width) {
-                player.x -= canvas.width;
-                spear.x -= canvas.width;
+        class World {
+            constructor(){
+                this.gravity = 0.1;
+                this.trambolineUsed = false;
+                this.dragOffsetX = 0;
+                this.isRunning = false;
+                this.score = 0;
+                this.coinCount = 0;
+                this.enemyCount = 0;
+                this.lifeLeft = 3;
+                this.radius = Math.min(canvas.width, canvas.height) * 0.025;
+            };
+            update(){
+                jumpScore = Math.floor((((canvas.height / 2) + 90) - minValue) / 10);
+                world.score = jumpScore + world.coinCount * 10 + world.enemyCount * 10;
             };
         };
-    };
 
-    function touchEnd() {
-        isDragging = false;
-    };
+        const world = new World();
 
-    canvas.addEventListener('touchstart', touchStart, {passive: true});
-    canvas.addEventListener('touchmove', touchMove, {passive: true});
-    canvas.addEventListener('touchend', touchEnd, {passive: true});
-
-    function drawHeartIcons() {
-        const cloneIcons = document.querySelectorAll('#clone');
-        if (lifeLeft > 0) {
-            cloneIcons.forEach((cloneIcon, index) => {
-                if (index > 0) {
-                    cloneIcon.parentNode.removeChild(cloneIcon);
-                }
-            });
-            for (let index = 0; index < lifeLeft; index++) {
-                const newIcon = heartIcon.cloneNode(true)
-                newIcon.classList.remove('none');
-                newIcon.id = 'clone';
-                newIcon.setAttribute('transform', `translate(${550 * index - 1350})`);
-                newIcon.setAttribute('fill', `red`);
-                svg.appendChild(newIcon);
-            };
-        }; 
-    };
-
-    function clearCanvas() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    };
-
-    function drawPlayer() {
-        ctx.fillStyle = text;
-        ctx.fillRect(player.x, player.y - camera.y, player.width, player.height);
-        ctx.fillRect(spear.x, spear.y - camera.y, spear.width, spear.height)
-    };
-  
-    function drawPlatforms() {
-        platformContainer.forEach(platform => {
-            if (platform.breakCount) {
-              ctx.fillStyle = 'brown';  
-            } else {
-                ctx.fillStyle = primary;
-            };
-            ctx.fillRect(platform.x, platform.y - camera.y, platform.width, platform.height);
-        });
-    };
-
-    function movingPlatformAnim(platform) {
-        if (platformAnimDuration > platformAnimFrame) {
-
-            if (platform.particle) {
-                particleAnim(platform);
-            };
-
-            if (platformAnimDuration / 2 <= platformAnimFrame) {
-                platform.x += -platformMoveStrength ;
-                platformAnimFrame++;
-            } else {
-                platform.x += platformMoveStrength;
-                platformAnimFrame++;
-            };
-            if (platformAnimFrame === platformAnimDuration) {
-                platformAnimFrame = 0;
-            };
+        function updateWorld() {
+            world.update();
         };
-    };
 
-    function particleAnim(platform) {
-        const foundParticle = particleContainer.find(particle => areEqual(particle, platform));
-        foundParticle.y += particleMoveStrength;
+        //#endregion
 
-        if (0 === platformAnimFrame) {
-            foundParticle.y = platform.y;
-            foundParticle.x = platform.x + platform.width / 2;
-        };
-        if ( platformAnimDuration / 2 === platformAnimFrame) {
-            foundParticle.y = platform.y;
-            foundParticle.x = platform.x + platform.width / 2;
-        }; 
-    };
+        //#region Background
 
-    function relocateAssests() {
-        trambolineContainer.forEach(tramboline => {
-            tramboline.x = tramboline.x - tramboline.width;
-        });
+        let backgroundsArray = [];        
+        let backgroundIndex = 2;
+        let indexParam = 0;
 
-        coinContainer.forEach(coin => {
-            coin.x = coin.x + coin.width / 2;
-            coin.y = coin.y - 10;
-        });
+        class Background {
+            constructor(){
+                this.y = -1600;
+                this.height = canvas.height * 2;
+                this.width = canvas.width;
+                this.index = 0;
+            }
 
-        enemyContainer.forEach(enemy => {
-            enemy.x = enemy.x + 5;
-            enemy.y = enemy.y - 30;
-            enemy.width = player.width;
-            enemy.height =  player.height;    
-        });
-
-        boosterContainer.forEach(booster => {
-            booster.y = booster.y - 30;
-        });
-
-        heartContainer.forEach(heart => {
-            heart.y = heart.y - 23; 
-        });
-
-        particleContainer.forEach(particle => {
-            particle.x = particle.x + particle.width/2;
-        });
-    };
-
-    function drawTrambolines() {
-        trambolineContainer.forEach(tramboline => {
-            if (tramboline.tramboline === true) {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(tramboline.x, tramboline.y - camera.y, tramboline.width, tramboline.height);
-            };
-        });
-    };
-
-    function drawBoosters() {
-        boosterContainer.forEach(booster => {
-            const svgJetpack = `
-                <svg class="icon icon-tabler icon-tabler-jetpack" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M0 0h24v24H0z" fill="none" stroke="none"/>
-                    <path d="m10 6a3 3 0 1 0-6 0v7h6v-7z"/>
-                    <path d="m14 13h6v-7a3 3 0 0 0-6 0v7z"/>
-                    <path d="m5 16c0 2.333 0.667 4 2 5 1.333-1 2-2.667 2-5"/>
-                    <path d="m15 16c0 2.333 0.667 4 2 5 1.333-1 2-2.667 2-5"/>
-                    <path d="m10 8h4"/>
-                    <path d="m10 11h4"/>
-                </svg>
-            `;
-                
-            const img = new Image();
-            img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgJetpack)}`;
+            updateStats(){
+                this.index = indexParam;
+                indexParam++;
+            }
             
-            ctx.drawImage(img, booster.x, booster.y - camera.y, assetStats.width, assetStats.height);
-        });
+            //#region drawBackground
 
-    };
+             draw(){
+                const svgBackground = `
+                <svg enable-background="new 0 0 800 3200" version="1.1" viewBox="0 0 800 3200" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">
+                    <style type="text/css">
+                        .st0{fill:#B1F2ED;}
+                        .st1{fill:#FFFFFF;}
+                    </style>
+                    <path class="st0" d="m183.8 729.5c-0.6 4-2 7.7-4.1 11 0.2-4.1 1.7-7.9 4.1-11z"/>
+                    <path class="st0" d="m711.3 2715.2c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm-121.2-2186.5c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm121.2 2186.5c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm-121.2-2186.5c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm-356.1-278.6c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm356.1 278.6c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm121.2 2186.5c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm-477.3-2465.1c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm356.1 278.6c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm123.3-427.1c3.1 0 6.1 0.6 8.8 1.8 5-6 12.6-9.7 21-9.7h1.4c4.7-17.7 20.8-30.7 39.9-30.7 5.6 0 10.9 1.1 15.8 3.1v-61.7h-798.8v687.7c7.5-12.9 21.5-21.6 37.5-21.6 5 0 9.8 0.9 14.3 2.4 9.7-13.6 25.6-22.5 43.6-22.5 25.8 0 47.4 18.3 52.4 42.6 1.1-0.1 2.3-0.2 3.4-0.2 6.7 0 12.9 2.1 18 5.7 2.8-1.1 5.8-1.8 8.9-1.8 12.9 0 23.4 10.5 23.4 23.4 0 1.1-0.1 2.2-0.2 3.2 2 0.6 3.9 1.5 5.6 2.7 0.7-1.5 1.6-2.9 2.8-4.1 5.4-5.4 14.2-5.4 19.6 0s5.4 14.2 0 19.6c-4.1 4.1-10.1 5.1-15.2 3-1.7 8.3-9 14.6-17.8 14.6-9.1 0-16.7-6.7-18-15.5-0.1-0.9-0.2-1.8-0.2-2.8v-0.5c-0.6 1.1-1.4 2.1-2.1 3.1-5.8 7.4-14.7 12.1-24.8 12.1-8.9 0-17-3.7-22.7-9.7-9.1 7.2-20.6 11.5-33.1 11.5-11.4 0-21.9-3.6-30.6-9.7-7.5 6.1-17 9.7-27.3 9.7-7 0-13.7-1.7-19.5-4.7-4.8 3-10.4 4.7-16.5 4.7h-1.5v615.7c37.9 0 69.9 25.6 79.6 60.5 9.5-7.7 21.6-12.4 34.8-12.4 27.7 0 50.6 20.4 54.4 47 11.6 8.3 19.2 21.9 19.2 37.2 0 25.3-20.5 45.8-45.7 45.8-14.4 0-27.3-6.7-35.7-17.1-10 10.5-24.2 17.1-39.9 17.1-15.8 0-30-6.7-40.1-17.3-8.3 2.8-17.3 4.4-26.6 4.4v1388.3c1.8-0.1 3.6-0.1 5.4-0.1 6 0 11.8 0.4 17.3 1.1 7.2-12.3 24.9-21 45.7-21 27.1 0 49.1 14.8 49.1 33.2v0.2c1.5-0.1 3.1-0.2 4.7-0.2 20.7 0 38.4 8.6 45.6 20.9 1.1-0.2 2.3-0.3 3.5-0.3 10.6 0 19.2 8.6 19.2 19.2s-8.6 19.2-19.2 19.2c-4.5 0-8.7-1.6-12-4.2-9 7-22.3 11.5-37.1 11.5-1.6 0-3.3-0.1-4.9-0.2-9 7.6-22.8 12.4-38.3 12.4-18.5 0-34.6-6.9-42.9-17.1-9.3 2.3-19.7 3.6-30.7 3.6-1.8 0-3.6 0-5.4-0.1v195.4h798.9v-1307.1c-16.5 0-31.7-5.7-43.8-15.2-7.6 8-18.3 12.9-30.2 12.9-13.4 0-25.3-6.3-33-16.1-0.9 0.1-1.9 0.1-2.9 0.1h-0.3c-1.8 11.6-11.8 20.6-23.9 20.6-11.7 0-21.5-8.3-23.7-19.4-6.7 2.8-14.7 1.5-20.2-4-7.2-7.2-7.2-18.8 0-26s18.8-7.2 26 0c1.6 1.6 2.9 3.5 3.8 5.4 2.2-1.6 4.7-2.8 7.4-3.6-0.2-1.4-0.3-2.8-0.3-4.3 0-17.2 14-31.2 31.2-31.2 4.2 0 8.2 0.8 11.9 2.4 6.8-4.8 15-7.6 23.9-7.6 1.5 0 3 0.1 4.5 0.3 6.7-32.3 35.2-56.6 69.5-56.7v-1608.2c-0.8 0.3-1.7 0.7-2.5 0.9-4.2 1.4-8.6 2.2-13.3 2.2-7.7 0-14.9-2.1-21-5.8-5 5.5-12.2 8.9-20.3 8.9-6.2 0-12-2.1-16.6-5.6-3.7 2.7-8.3 4.3-13.3 4.3-12.6 0-22.9-10.2-22.9-22.9 0.1-12.5 10.4-22.7 23-22.7zm-317.6 364.1c5 0 9.7 1 14 2.8 7.9-9.4 19.9-15.4 33.2-15.4 0.7 0 1.4 0 2.2 0.1 7.4-27.9 32.8-48.5 63-48.5 30 0 55.2 20.2 62.8 47.8 7.5-6.2 17.1-9.8 27.5-9.8 21.9 0 39.9 16.1 43 37.1 9.1 6.6 15.1 17.3 15.1 29.4 0 19.9-16.2 36.1-36.1 36.1-11.4 0-21.6-5.3-28.2-13.5-7.9 8.3-19.1 13.5-31.5 13.5-12.5 0-23.7-5.3-31.6-13.7-6.6 2.2-13.7 3.5-21 3.5-12.1 0-23.5-3.3-33.2-9.1-7.9 8.6-19.3 14-32 14-9.8 0-18.9-3.3-26.2-8.8-5.9 4.2-13.1 6.7-20.9 6.7-20 0-36.1-16.2-36.1-36.1s16.1-36.1 36-36.1zm-34.6 832.6c2.3 0 4.4 0.6 6.2 1.6 5.1-7.3 16.2-12.4 29-12.4 0-12 14.3-21.7 32-21.7 12 0 22.4 4.5 27.9 11 6.1-1.5 12.9-2.4 20.2-2.4 3.9 0 7.7 0.2 11.3 0.7 4.7-8 16.3-13.7 29.8-13.7 17.7 0 32.1 9.7 32.1 21.7v0.1c1-0.1 2-0.1 3-0.1 13.5 0 25.1 5.7 29.8 13.6 0.7-0.1 1.5-0.2 2.3-0.2 6.9 0 12.6 5.6 12.6 12.6 0 6.9-5.6 12.6-12.6 12.6-3 0-5.7-1-7.8-2.7-5.9 4.6-14.6 7.5-24.2 7.5-1.1 0-2.1 0-3.2-0.1-5.9 5-14.9 8.1-25 8.1-12.1 0-22.6-4.5-28-11.2-6.1 1.5-12.9 2.3-20 2.3-8.3 0-16.1-1.1-22.9-3.1-5.9 5-15 8.3-25.2 8.3-5.8 0-11.3-1.1-16-2.9-4.7 1.8-10.2 2.9-16 2.9-11.5 0-21.6-4.1-27.2-10.2-2.2 1.8-4.9 2.8-8 2.8-6.9 0-12.6-5.6-12.6-12.6-0.1-6.9 5.5-12.5 12.5-12.5zm-145.8-1037.7c-7.9 0-15-3.3-20-8.7-4.2 1.4-8.6 2.2-13.3 2.2-7.7 0-14.9-2.1-21-5.8-5 5.5-12.2 8.9-20.3 8.9-6.2 0-12-2.1-16.6-5.6-3.7 2.7-8.3 4.2-13.3 4.2-12.6 0-22.9-10.2-22.9-22.9 0-12.6 10.2-22.9 22.9-22.9 3.1 0 6.1 0.6 8.8 1.8 5-6 12.6-9.7 21-9.7h1.4c4.7-17.7 20.8-30.7 39.9-30.7 19 0 35 12.8 39.8 30.3 4.7-3.9 10.8-6.2 17.4-6.2 13.8 0 25.3 10.2 27.2 23.5 5.8 4.2 9.6 10.9 9.6 18.6 0 12.6-10.2 22.9-22.9 22.9-7.2 0-13.7-3.4-17.9-8.6-4.8 5.4-11.9 8.7-19.8 8.7zm-105.1 1703.3c-4.7 1.9-10.2 2.9-16 2.9-11.5 0-21.6-4.1-27.2-10.2-2.2 1.8-5 2.9-8 2.9-6.9 0-12.5-5.6-12.5-12.6s5.6-12.6 12.5-12.6c2.3 0 4.4 0.6 6.2 1.6 5.1-7.4 16.2-12.5 29-12.5 0-12 14.4-21.7 32.1-21.7 12 0 22.4 4.4 27.9 11 6.1-1.5 13-2.4 20.2-2.4 3.9 0 7.7 0.2 11.3 0.7 4.7-8 16.3-13.7 29.8-13.7 17.7 0 32 9.7 32 21.7v0.1c1-0.1 2-0.1 3-0.1 13.5 0 25.1 5.7 29.8 13.6 0.7-0.1 1.5-0.2 2.3-0.2 6.9 0 12.5 5.6 12.5 12.6s-5.6 12.6-12.5 12.6c-3 0-5.7-1-7.8-2.7-5.9 4.6-14.6 7.5-24.2 7.5-1.1 0-2.1 0-3.2-0.1-5.9 4.9-14.9 8.1-25 8.1-12.1 0-22.6-4.5-28.1-11.2-6.1 1.5-12.9 2.3-20 2.3-8.3 0-16.1-1.1-22.9-3.1-5.9 5-15 8.3-25.2 8.3-5.8 0.1-11.3-1-16-2.8zm441.7 476c-5.5 5.5-13.5 6.8-20.2 4-2.3 11-12 19.3-23.7 19.3-12.1 0-22.1-8.9-23.9-20.6-0.2-1.2-0.3-2.4-0.3-3.7v-0.7c-0.9 1.5-1.8 2.9-2.9 4.2-7.6 9.8-19.6 16.1-33 16.1-11.9 0-22.6-5-30.2-12.9-12.1 9.5-27.4 15.2-44 15.2-15.1 0-29.2-4.7-40.7-12.8-9.9 8-22.5 12.8-36.3 12.8-9.3 0-18.2-2.2-26-6.2-6.4 3.9-13.8 6.2-21.9 6.2-13.4 0-25.3-6.3-33-16.1-0.9 0.1-1.9 0.1-2.8 0.1h-0.1c-1.8 11.6-11.8 20.6-23.9 20.6-11.7 0-21.5-8.3-23.7-19.3-6.7 2.8-14.7 1.5-20.2-4-7.2-7.2-7.2-18.8 0-26s18.8-7.2 26 0c1.6 1.6 2.9 3.5 3.8 5.4 2.2-1.6 4.7-2.8 7.4-3.6-0.2-1.4-0.3-2.8-0.3-4.3 0-17.2 14-31.2 31.2-31.2 4.2 0 8.2 0.8 11.8 2.3 5.8-4.1 12.6-6.7 20-7.4 9.4-19.1 29.1-32.2 51.8-32.2 6.7 0 13.1 1.1 19 3.2 12.9-18.1 34.1-29.9 58-29.9 34.3 0 63 24.3 69.7 56.7 1.5-0.2 3-0.3 4.5-0.3 8.9 0 17.2 2.8 23.9 7.6 3.7-1.5 7.7-2.3 11.9-2.3 17.2 0 31.2 13.9 31.2 31.2 0 1.4-0.1 2.9-0.3 4.3 2.7 0.8 5.2 2 7.4 3.6 0.9-2 2.2-3.8 3.8-5.4 7.2-7.2 18.8-7.2 26 0 7.2 7.3 7.2 18.9 0 26.1zm66.1 227.4h1.4c4.7-17.7 20.8-30.7 39.9-30.7 19 0 35 12.8 39.8 30.3 4.7-3.9 10.8-6.2 17.4-6.2 13.8 0 25.3 10.2 27.2 23.5 5.8 4.1 9.6 10.9 9.6 18.6 0 12.6-10.2 22.9-22.9 22.9-7.2 0-13.7-3.4-17.9-8.6-5 5.3-12.1 8.6-20 8.6s-15-3.3-20-8.7c-4.2 1.4-8.6 2.2-13.3 2.2-7.7 0-14.9-2.1-21-5.8-5 5.5-12.2 8.9-20.3 8.9-6.2 0-12-2.1-16.6-5.6-3.7 2.7-8.3 4.3-13.3 4.3-12.6 0-22.9-10.2-22.9-22.9 0-12.6 10.2-22.9 22.9-22.9 3.1 0 6.1 0.6 8.8 1.8 5.2-5.9 12.8-9.7 21.2-9.7zm76.2-1765.9c20.7 0 38.4 8.6 45.6 20.9 1.1-0.2 2.3-0.3 3.5-0.3 10.6 0 19.2 8.6 19.2 19.2s-8.6 19.2-19.2 19.2c-4.5 0-8.7-1.6-12-4.2-9 7-22.3 11.5-37.1 11.5-1.6 0-3.3-0.1-4.9-0.2-9 7.6-22.8 12.4-38.2 12.4-18.5 0-34.6-6.9-42.9-17.1-9.3 2.3-19.7 3.6-30.7 3.6-12.7 0-24.6-1.7-35.1-4.7-9 7.7-22.9 12.7-38.6 12.7-8.9 0-17.3-1.6-24.5-4.5-7.2 2.8-15.6 4.5-24.5 4.5-17.6 0-33-6.3-41.7-15.7-3.3 2.7-7.6 4.4-12.2 4.4-10.6 0-19.2-8.6-19.2-19.2s8.6-19.2 19.2-19.2c3.4 0 6.7 0.9 9.4 2.5 7.8-11.3 24.8-19.1 44.4-19.1 0-18.3 22-33.2 49.1-33.2 18.3 0 34.3 6.8 42.7 16.9 9.4-2.3 19.9-3.6 30.9-3.6 6 0 11.8 0.4 17.3 1.1 7.2-12.3 24.9-21 45.7-21 27.1 0 49.1 14.8 49.1 33.2v0.2c1.6-0.3 3.1-0.3 4.7-0.3zm17 1813.8c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm-121.2-2186.5c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm-356.1-278.6c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm356.1 278.6c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm-356.1-278.6c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm477.3 2465.1c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm-121.2-2186.5c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm-356.1-278.6c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm356.1 278.6c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm121.2 2186.5c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm-121.2-2186.5c0.7 1 1.4 2 2.2 3 0.7-0.8 1.4-1.5 2.1-2.4-1.5-0.1-2.9-0.3-4.3-0.6zm121.2 2186.5c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4zm0 0c0.4 0.7 0.9 1.3 1.4 1.9 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4z"/>
 
-    function drawCoins() {
-        coinContainer.forEach(coin => {
-            ctx.beginPath();
-            ctx.arc(coin.x, coin.y - camera.y, coinStats.coinRadius, coinStats.coinStartAngle, coinStats.coinEndAngle);
-            ctx.fillStyle = 'yellow';
-            ctx.fill();
-            ctx.closePath();
-        });
-    };
+                        <path class="st1" d="m189.4 1505.5c0 25.3-20.5 45.8-45.7 45.8-14.4 0-27.3-6.7-35.7-17.1-10 10.5-24.2 17.1-39.9 17.1-15.8 0-30-6.7-40.1-17.3-8.3 2.8-17.3 4.4-26.6 4.4v-165.1c37.9 0 69.9 25.6 79.6 60.5 9.5-7.7 21.6-12.4 34.8-12.4 27.7 0 50.6 20.4 54.4 47 11.7 8.2 19.2 21.8 19.2 37.1z"/>
 
-    function drawParticles() {
 
-        particleContainer.forEach(particle => {
-            ctx.beginPath();
-            ctx.arc(particle.x, particle.y - camera.y, particleStats.particleRadius, particleStats.particleStartAngle, particleStats.particleEndAngle);
-            ctx.fillStyle = text;
-            ctx.fill();
-            ctx.closePath();
-        });
-    };
+                        <path class="st1" d="m594.3 529.3c-0.6 0.8-1.3 1.6-2.1 2.4-0.8-0.9-1.5-1.9-2.2-3 1.5 0.3 2.9 0.5 4.3 0.6z"/>
+                        <path class="st1" d="m656.6 509.1c0 19.9-16.2 36.1-36.1 36.1-11.4 0-21.6-5.3-28.2-13.5 0.7-0.8 1.4-1.5 2.1-2.4-1.4-0.1-2.8-0.3-4.2-0.6 0.7 1 1.4 2 2.2 3-7.9 8.3-19.1 13.5-31.5 13.5-12.5 0-23.7-5.3-31.6-13.7-6.6 2.2-13.7 3.5-21 3.5-12.1 0-23.5-3.3-33.2-9.1-7.9 8.6-19.3 14-32 14-9.8 0-18.9-3.3-26.2-8.8-5.9 4.2-13.1 6.7-20.9 6.7-20 0-36.1-16.2-36.1-36.1s16.2-36.1 36.1-36.1c5 0 9.7 1 14 2.8 7.9-9.4 19.9-15.4 33.2-15.4 0.7 0 1.4 0 2.2 0.1 7.4-27.9 32.8-48.5 63-48.5 30 0 55.2 20.2 62.8 47.8 7.5-6.2 17.1-9.8 27.5-9.8 21.9 0 39.9 16.1 43 37.1 8.9 6.6 14.9 17.3 14.9 29.4z"/>
+                        <path class="st1" d="m594.3 529.3c-0.6 0.8-1.3 1.6-2.1 2.4-0.8-0.9-1.5-1.9-2.2-3 1.5 0.3 2.9 0.5 4.3 0.6z"/>
 
-    function drawEnemies() {
-        ctx.fillStyle = text;
-        enemyContainer.forEach(enemy => {
-            ctx.fillRect(enemy.x, enemy.y - camera.y, enemy.width, enemy.height);
-        });
-    };
 
-    function drawHearts() {
-        heartContainer.forEach(heart => {
-            const svgHeart = `
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                    <path fill="#FF0000" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C15.09 3.81 16.76 3 18.5 3 21.58 3 24 5.42 24 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                </svg>
-            `;
+                        <path class="st1" d="m714 2715.6c-0.4 0.5-0.9 1-1.3 1.5-0.5-0.6-1-1.2-1.4-1.9 0.9 0.2 1.8 0.3 2.7 0.4z"/>
+                        <path class="st1" d="m714 2715.6c-0.4 0.5-0.9 1-1.3 1.5-0.5-0.6-1-1.2-1.4-1.9 0.9 0.2 1.8 0.3 2.7 0.4z"/>
+                        <path class="st1" d="m753.4 2702.8c0 12.6-10.2 22.9-22.9 22.9-7.2 0-13.7-3.4-17.9-8.6 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4 0.4 0.7 0.9 1.3 1.4 1.9-5 5.3-12.1 8.6-20 8.6s-15-3.3-20-8.7c-4.2 1.4-8.6 2.2-13.3 2.2-7.7 0-14.9-2.1-21-5.8-5 5.5-12.2 8.9-20.3 8.9-6.2 0-12-2.1-16.6-5.6-3.7 2.7-8.3 4.3-13.3 4.3-12.6 0-22.9-10.2-22.9-22.9 0-12.6 10.2-22.9 22.9-22.9 3.1 0 6.1 0.6 8.8 1.8 5-6 12.6-9.7 21-9.7h1.4c4.7-17.7 20.8-30.7 39.9-30.7 19 0 35 12.8 39.8 30.3 4.7-3.9 10.8-6.2 17.4-6.2 13.8 0 25.3 10.2 27.2 23.5 6 4.1 9.8 10.9 9.8 18.6z"/>
 
-            const img = new Image();
-            img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgHeart)}`;
 
-            ctx.drawImage(img, heart.x, heart.y - camera.y, assetStats.width, assetStats.height);
-        });
-    };
+                        <path class="st1" d="m236.7 250.5c-0.4 0.5-0.9 1-1.3 1.5-0.5-0.6-0.9-1.2-1.4-1.9 0.9 0.2 1.8 0.3 2.7 0.4z"/>
+                        <path class="st1" d="m276.1 237.7c0 12.6-10.2 22.9-22.9 22.9-7.2 0-13.7-3.4-17.9-8.6 0.5-0.5 0.9-1 1.3-1.5-0.9-0.1-1.8-0.2-2.7-0.4 0.4 0.7 0.9 1.3 1.4 1.9-5 5.3-12.1 8.6-20 8.6s-15-3.3-20-8.7c-4.2 1.4-8.6 2.2-13.3 2.2-7.7 0-14.9-2.1-21-5.8-5 5.5-12.2 8.9-20.3 8.9-6.2 0-12-2.1-16.6-5.6-3.7 2.7-8.3 4.2-13.3 4.2-12.6 0-22.9-10.2-22.9-22.9 0-12.6 10.2-22.9 22.9-22.9 3.1 0 6.1 0.6 8.8 1.8 5-6 12.6-9.7 21-9.7h1.4c4.7-17.7 20.8-30.7 39.9-30.7 19 0 35 12.8 39.8 30.3 4.7-3.9 10.8-6.2 17.4-6.2 13.8 0 25.3 10.2 27.2 23.5 6 4.3 9.8 11 9.8 18.7z"/>
+                        <path class="st1" d="m236.7 250.5c-0.4 0.5-0.9 1-1.3 1.5-0.5-0.6-0.9-1.2-1.4-1.9 0.9 0.2 1.8 0.3 2.7 0.4z"/>
 
-    function rectangularCollisionDetection(rect1, rect2) {
-        return rect1.x < rect2.x + rect2.width &&
-        rect1.x + rect1.width > rect2.x &&
-        rect1.y < rect2.y + rect2.height &&
-        rect1.y + rect1.height > rect2.y;
-    };
 
-    function platformCollisionDetection(rect1, rect2) {
-        return rect1.y + rect1.height / 2 >= rect2.y &&
-        rect1.y + rect1.height / 2 <= rect2.y + rect2.height &&
-        rect1.x <= rect2.x + rect2.width && rect1.x + rect1.width >= rect2.x;
-    };
+                        <path class="st1" d="m800.4 142.3v3.3c-0.9-0.7-1.7-1.5-2.5-2.4 0.8-0.2 1.6-0.5 2.5-0.9z"/>
+                        <path class="st1" d="m800.4 66v76.3c-0.8 0.3-1.7 0.7-2.5 0.9-4.2 1.4-8.6 2.2-13.3 2.2-7.7 0-14.9-2.1-21-5.8-5 5.5-12.2 8.9-20.3 8.9-6.2 0-12-2.1-16.6-5.6-3.7 2.7-8.3 4.3-13.3 4.3-12.6 0-22.9-10.2-22.9-22.9 0-12.6 10.2-22.9 22.9-22.9 3.1 0 6.1 0.6 8.8 1.8 5-6 12.6-9.7 21-9.7h1.4c4.7-17.7 20.8-30.7 39.9-30.7 5.6 0.1 11 1.2 15.9 3.2z"/>
 
-    function circularCollisionDetection(rect, circle) {
-  
-        let closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
-        let closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
-        
-        let distX = circle.x - closestX;
-        let distY = circle.y - closestY;
-        let distance = Math.sqrt(distX * distX + distY * distY);
-        
-        return distance <= coinStats.coinRadius;
-    };
 
-    function findLowestPlatform() {
+                        <path class="st1" d="m800.4 1750.7v142.2c-16.5 0-31.7-5.7-43.8-15.2-7.6 8-18.3 12.9-30.2 12.9-13.4 0-25.3-6.3-33-16.1-0.9 0.1-1.9 0.1-2.9 0.1h-0.3c-1.8 11.6-11.8 20.6-23.9 20.6-11.7 0-21.5-8.3-23.7-19.4-6.7 2.8-14.7 1.5-20.2-4-7.2-7.2-7.2-18.8 0-26s18.8-7.2 26 0c1.6 1.6 2.9 3.5 3.8 5.4 2.2-1.6 4.7-2.8 7.4-3.6-0.2-1.4-0.3-2.8-0.3-4.3 0-17.2 14-31.2 31.2-31.2 4.2 0 8.2 0.8 11.9 2.4 6.8-4.8 15-7.6 23.9-7.6 1.5 0 3 0.1 4.5 0.3 6.8-32.1 35.3-56.4 69.6-56.5z"/>
 
-        const keyToExclude = ["isMoving", "particle"];
-        let filteredContainer = platformContainer
-            .filter(obj => !keyToExclude.some(key => obj.hasOwnProperty(key)))
 
-        lowestPlatform = filteredContainer.reduce((lowestPlatform, currentPlatform) => {
-            return currentPlatform.y > lowestPlatform.y ? currentPlatform : lowestPlatform; 
-         });
-    };
+                        <path class="st1" d="m552 2439.9c-5.5 5.5-13.5 6.8-20.2 4-2.3 11-12 19.3-23.7 19.3-12.1 0-22.1-8.9-23.9-20.6-0.2-1.2-0.3-2.4-0.3-3.7v-0.7c-0.9 1.5-1.8 2.9-2.9 4.2-7.6 9.8-19.6 16.1-33 16.1-11.9 0-22.6-5-30.2-12.9-12.1 9.5-27.4 15.2-44 15.2-15.1 0-29.2-4.7-40.7-12.8-9.9 8-22.5 12.8-36.3 12.8-9.3 0-18.2-2.2-26-6.2-6.4 3.9-13.8 6.2-21.9 6.2-13.4 0-25.3-6.3-33-16.1-0.9 0.1-1.9 0.1-2.8 0.1h-0.1c-1.8 11.6-11.8 20.6-23.9 20.6-11.7 0-21.5-8.3-23.7-19.3-6.7 2.8-14.7 1.5-20.2-4-7.2-7.2-7.2-18.8 0-26s18.8-7.2 26 0c1.6 1.6 2.9 3.5 3.8 5.4 2.2-1.6 4.7-2.8 7.4-3.6-0.2-1.4-0.3-2.8-0.3-4.3 0-17.2 14-31.2 31.2-31.2 4.2 0 8.2 0.8 11.8 2.3 5.8-4.1 12.6-6.7 20-7.4 9.4-19.1 29.1-32.2 51.8-32.2 6.7 0 13.1 1.1 19 3.2 12.9-18.1 34.1-29.9 58-29.9 34.3 0 63 24.3 69.7 56.7 1.5-0.2 3-0.3 4.5-0.3 8.9 0 17.2 2.8 23.9 7.6 3.7-1.5 7.7-2.3 11.9-2.3 17.2 0 31.2 13.9 31.2 31.2 0 1.4-0.1 2.9-0.3 4.3 2.7 0.8 5.2 2 7.4 3.6 0.9-2 2.2-3.8 3.8-5.4 7.2-7.2 18.8-7.2 26 0 7.2 7.3 7.2 18.9 0 26.1z"/>
+                        <path class="st1" d="m484.2 2442.7h-0.3c-1 0-1.9 0-2.9-0.1 1.1-1.3 2-2.7 2.9-4.2v0.7c0 1.1 0.1 2.4 0.3 3.6z"/>
 
-    function areEqual(obj1, obj2) {
-        if (obj1.id === obj2.id) {
-            return true;
-        }
-        return false;
-    };
 
-    function deletePlatform(platform, index) {
+                        <path class="st1" d="m231 741.7c-4.1 4.1-10.1 5.1-15.2 3-1.7 8.3-9 14.6-17.8 14.6-9.1 0-16.7-6.7-18-15.5-0.1-0.9-0.2-1.8-0.2-2.8v-0.5c2-3.3 3.4-7 4.1-11-2.4 3-4 6.8-4.1 11-0.6 1.1-1.4 2.1-2.1 3.1-5.8 7.4-14.7 12.1-24.8 12.1-8.9 0-17-3.7-22.7-9.7-9.1 7.2-20.6 11.5-33.1 11.5-11.4 0-21.9-3.6-30.6-9.7-7.5 6.1-17 9.7-27.3 9.7-7 0-13.7-1.7-19.5-4.7-4.8 3-10.4 4.7-16.5 4.7h-1.5v-65.4c7.3-12.9 21.3-21.6 37.3-21.6 5 0 9.8 0.9 14.3 2.4 9.7-13.6 25.6-22.5 43.6-22.5 25.8 0 47.4 18.3 52.4 42.6 1.1-0.1 2.3-0.2 3.4-0.2 6.7 0 12.9 2.1 18 5.7 2.8-1.1 5.8-1.8 8.9-1.8 12.9 0 23.4 10.5 23.4 23.4 0 1.1-0.1 2.2-0.2 3.2 2 0.6 3.9 1.5 5.6 2.7 0.7-1.5 1.6-2.9 2.8-4.1 5.4-5.4 14.2-5.4 19.6 0 5.6 5.6 5.6 14.4 0.2 19.8z"/>
+                        <path class="st1" d="m1.5 692.1v2.6c-0.5 0-1 0.1-1.5 0.1 0.5-1 0.9-1.8 1.5-2.7z"/>
+                        <path class="st1" d="m183.8 729.5c-0.6 4-2 7.7-4.1 11 0.2-4.1 1.7-7.9 4.1-11z"/>
+                        <path class="st1" d="m179.8 741c0 0.9 0.1 1.9 0.2 2.8h-0.2c-0.7 0-1.4 0-2.1-0.1 0.8-1 1.5-2 2.1-3.1v0.4z"/>
+                        <path class="st1" d="m183.8 729.5c-0.6 4-2 7.7-4.1 11 0.2-4.1 1.7-7.9 4.1-11z"/>
+                        <path class="st1" d="m183.8 729.5c-0.6 4-2 7.7-4.1 11 0.2-4.1 1.7-7.9 4.1-11z"/>
 
-        if (platform.enemy === true) {
-            platform.enemy = false;
-            const foundIndex = enemyContainer.findIndex(enemy => areEqual(enemy, platform));
-            enemyContainer.splice(foundIndex, 1);
 
-        } else if (platform.coin === true) {
-            platform.coin = false;
-            const foundIndex = coinContainer.findIndex(coin => areEqual(coin, platform));
-            coinContainer.splice(foundIndex, 1);
+                        <path class="st1" d="m191.9 2979.6c0 10.6-8.6 19.2-19.2 19.2-4.5 0-8.7-1.6-12-4.2-9 7-22.3 11.5-37.1 11.5-1.6 0-3.3-0.1-4.9-0.2-9 7.6-22.8 12.4-38.3 12.4-18.5 0-34.6-6.9-42.9-17.1-9.3 2.3-19.7 3.6-30.7 3.6-1.8 0-3.6 0-5.4-0.1v-78c1.8-0.1 3.6-0.1 5.4-0.1 6 0 11.8 0.4 17.3 1.1 7.2-12.3 24.9-21 45.7-21 27.1 0 49.1 14.8 49.1 33.2v0.2c1.5-0.1 3.1-0.2 4.7-0.2 20.7 0 38.4 8.6 45.6 20.9 1.1-0.2 2.3-0.3 3.5-0.3 10.5-0.1 19.2 8.5 19.2 19.1z"/>
 
-        } else if (platform.tramboline === true) {
-            platform.tramboline = false;
-            const foundIndex = trambolineContainer.findIndex(tramboline => areEqual(tramboline, platform));
-            trambolineContainer.splice(foundIndex, 1);
 
-        } else if (platform.booster === true) {
-            platform.booster = false;
-            const foundIndex = boosterContainer.findIndex(booster => areEqual(booster, platform));
-            boosterContainer.splice(foundIndex, 1);
+                        <path class="st1" d="m762.6 941.2c0 10.6-8.6 19.2-19.2 19.2-4.5 0-8.7-1.6-12-4.2-9 7-22.3 11.5-37.1 11.5-1.6 0-3.3-0.1-4.9-0.2-9 7.6-22.8 12.4-38.2 12.4-18.5 0-34.6-6.9-42.9-17.1-9.3 2.3-19.7 3.6-30.7 3.6-12.7 0-24.6-1.7-35.1-4.7-9 7.7-22.9 12.7-38.6 12.7-8.9 0-17.3-1.6-24.5-4.5-7.2 2.8-15.6 4.5-24.5 4.5-17.6 0-33-6.3-41.7-15.7-3.3 2.7-7.6 4.4-12.2 4.4-10.6 0-19.2-8.6-19.2-19.2s8.6-19.2 19.2-19.2c3.4 0 6.7 0.9 9.4 2.5 7.8-11.3 24.8-19.1 44.4-19.1 0-18.3 22-33.2 49.1-33.2 18.3 0 34.3 6.8 42.7 16.9 9.4-2.3 19.9-3.6 30.9-3.6 6 0 11.8 0.4 17.3 1.1 7.2-12.3 24.9-21 45.7-21 27.1 0 49.1 14.8 49.1 33.2v0.2c1.5-0.1 3.1-0.2 4.7-0.2 20.7 0 38.4 8.6 45.6 20.9 1.1-0.2 2.3-0.3 3.5-0.3 10.6-0.1 19.2 8.5 19.2 19.1z"/>
 
-        } else if (platform.heart === true) {
-            platform.heart = false;
-            const foundIndex = heartContainer.findIndex(heart => areEqual(heart, platform));
-            heartContainer.splice(foundIndex, 1);
 
-        } else if (platform.particle === true) {
-            platform.particle = false;
-            const foundIndex = particleContainer.findIndex(particle => areEqual(particle, platform));
-            particleContainer.splice(foundIndex, 1);
-        };
+                        <path class="st1" d="m597.3 1309.1c0 6.9-5.6 12.6-12.6 12.6-3 0-5.7-1-7.8-2.7-5.9 4.6-14.6 7.5-24.2 7.5-1.1 0-2.1 0-3.2-0.1-5.9 5-14.9 8.1-25 8.1-12.1 0-22.6-4.5-28-11.2-6.1 1.5-12.9 2.3-20 2.3-8.3 0-16.1-1.1-22.9-3.1-5.9 5-15 8.3-25.2 8.3-5.8 0-11.3-1.1-16-2.9-4.7 1.8-10.2 2.9-16 2.9-11.5 0-21.6-4.1-27.2-10.2-2.2 1.8-4.9 2.8-8 2.8-6.9 0-12.6-5.6-12.6-12.6 0-6.9 5.6-12.5 12.6-12.5 2.3 0 4.4 0.6 6.2 1.6 5.1-7.3 16.2-12.4 29-12.4 0-12 14.3-21.7 32-21.7 12 0 22.4 4.5 27.9 11 6.1-1.5 12.9-2.4 20.2-2.4 3.9 0 7.7 0.2 11.3 0.7 4.7-8 16.3-13.7 29.8-13.7 17.7 0 32.1 9.7 32.1 21.7v0.1c1-0.1 2-0.1 3-0.1 13.5 0 25.1 5.7 29.8 13.6 0.7-0.1 1.5-0.2 2.3-0.2 6.9 0.1 12.5 5.7 12.5 12.6z"/>
 
-        platformContainer.splice(index, 1);
-    };
 
-    function deleteAsset(asset, index) {
+                        <path class="st1" d="m295.2 1945.1c0 7-5.6 12.6-12.5 12.6-3 0-5.7-1-7.8-2.7-5.9 4.6-14.6 7.5-24.2 7.5-1.1 0-2.1 0-3.2-0.1-5.9 4.9-14.9 8.1-25 8.1-12.1 0-22.6-4.5-28.1-11.2-6.1 1.5-12.9 2.3-20 2.3-8.3 0-16.1-1.1-22.9-3.1-5.9 5-15 8.3-25.2 8.3-5.8 0-11.3-1.1-16-2.9-4.7 1.9-10.2 2.9-16 2.9-11.5 0-21.6-4.1-27.2-10.2-2.2 1.8-5 2.9-8 2.9-6.9 0-12.5-5.6-12.5-12.6s5.6-12.6 12.5-12.6c2.3 0 4.4 0.6 6.2 1.6 5.1-7.4 16.2-12.5 29-12.5 0-12 14.4-21.7 32.1-21.7 12 0 22.4 4.4 27.9 11 6.1-1.5 13-2.4 20.2-2.4 3.9 0 7.7 0.2 11.3 0.7 4.7-8 16.3-13.7 29.8-13.7 17.7 0 32 9.7 32 21.7v0.1c1-0.1 2-0.1 3-0.1 13.5 0 25.1 5.7 29.8 13.6 0.7-0.1 1.5-0.2 2.3-0.2 6.9 0.2 12.5 5.8 12.5 12.7z"/>
 
-        if (asset.enemy === true) {
-            enemyContainer.splice(index, 1);
-            const foundIndex = platformContainer.findIndex(platform => areEqual(platform, asset));
-            platformContainer[foundIndex].enemy = false;
+                    </svg>
+                    `;
+                            
+                const background = new Image();
+                background.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgBackground)}`;
+              
+                ctx.drawImage(background, 0, (this.index * this.y) - camera.y, this.width, this.height + 10);
 
-        } else if (asset.coin === true) {
-            coinContainer.splice(index, 1);
-            const foundIndex = platformContainer.findIndex(platform => areEqual(platform, asset));
-            platformContainer[foundIndex].coin = false;
-
-        } else if (asset.tramboline === true) {
-            trambolineContainer.splice(index, 1);
-            const foundIndex = platformContainer.findIndex(platform => areEqual(platform, asset));
-            platformContainer[foundIndex].tramboline = false;
-
-        } else if (asset.booster === true) {
-            boosterContainer.splice(index, 1);
-            const foundIndex = platformContainer.findIndex(platform => areEqual(platform, asset));
-            platformContainer[foundIndex].booster = false;
-
-        } else if (asset.heart === true) {
-            heartContainer.splice(index, 1);
-            const foundIndex = platformContainer.findIndex(platform => areEqual(platform, asset));
-            platformContainer[foundIndex].heart = false;
-        } else if (asset.heart === true) {
-            heartContainer.splice(index, 1);
-            const foundIndex = platformContainer.findIndex(platform => areEqual(platform, asset));
-            platformContainer[foundIndex].heart = false;
-        };
-    };
-
-    function respawn() {
-
-        freezePlayer = false;
-        isDragging = false;
-        trambolineUsed = false;
-        player.isFlying = false;
-        jumpStrength = 3;
-        jumpDuration = 20;
-        jumpFrame = 0;
-
-        findLowestPlatform();
-
-        if (lowestPlatform.enemy === true) {
-            lowestPlatform.enemy = false;
-            const foundIndex = enemyContainer.findIndex(enemy => areEqual(enemy, lowestPlatform));
-            enemyContainer.splice(foundIndex, 1);
-
-        } else if (lowestPlatform.coin === true) {
-            lowestPlatform.coin = false;
-            const foundIndex = coinContainer.findIndex(coin => areEqual(coin, lowestPlatform));
-            coinContainer.splice(foundIndex, 1);
-
-        } else if (lowestPlatform.tramboline === true) {
-            lowestPlatform.tramboline = false;
-            const foundIndex = trambolineContainer.findIndex(tramboline => areEqual(tramboline, lowestPlatform));
-            trambolineContainer.splice(foundIndex, 1);
-
-        } else if (lowestPlatform.booster === true) {
-            lowestPlatform.booster = false;
-            const foundIndex = boosterContainer.findIndex(booster => areEqual(booster, lowestPlatform));
-            boosterContainer.splice(foundIndex, 1);
-
-        };
-
-        setTimeout(() => {
-            player.y = lowestPlatform.y - 50;
-            player.x = lowestPlatform.x + player.width;
-            spear.x = player.x - spearOffset;
-        }, 250);
-
-        lifeLeft --;
-    };
-
-    function updateMinValue(newValue) {
-        minValue = Math.min(minValue, newValue);
-    };
-
-    function updatePlayer() {
-        if (minValue - 5 < player.y) {
-            camera.y = minValue - canvas.height / 2;
-        };
-        
-        if (!freezePlayer) {
-            player.speedY += gravity;
-            player.y += player.speedY;
-        
-            spear.y = player.y - 20;
-            
-            if (jumpFrame === 100 && trambolineUsed) {
-                player.isFlying = false;
-                trambolineUsed = false;
-            } else if (jumpFrame === 300) {
-                player.isFlying = false;
             };
-    
-            if (player.isJumping && jumpFrame < jumpDuration) {
-                player.speedY = -jumpStrength;
-                jumpFrame++;
-            } else {
-                jumpFrame = 0;
-                player.isJumping = false;
-            };
-        };
-    };
 
-    startButton.addEventListener('click', () => {
-        startButton.classList.add('none');
-        interface.classList.remove('none');
+            //#endregion
         
-        isRunning = true;
-        
-        player.x = (width / 2) - 7.5;
-        player.y = (height / 2) + 70;
-        spear.x = player.x - spearOffset;
-
-        camera.y = 0;
-        
-        score = 0;
-        coinCount = 0;
-        enemyCount = 0;
-
-        scoreUI.textContent = `${score}`;
-
-        minValue = Infinity;
-
-        lifeLeft = 3;
-
-        let objectToCopy;
-        platformContainer = JSON.parse(JSON.stringify(platforms));
-        
-        platformContainer.forEach((platform, index) => {
-            
-            if (platform.coin) {
-                objectToCopy = JSON.parse(JSON.stringify(platform));
-                coinContainer.push(objectToCopy);
-            };
-            if (platform.enemy) {
-                objectToCopy = JSON.parse(JSON.stringify(platform));
-                enemyContainer.push(objectToCopy);
-            };
-            if (platform.heart) {
-                objectToCopy = JSON.parse(JSON.stringify(platform));
-                heartContainer.push(objectToCopy);
-            };
-            if (platform.tramboline) {
-                objectToCopy = JSON.parse(JSON.stringify(platform));
-                trambolineContainer.push(objectToCopy);
-            };
-            if (platform.booster) {
-                objectToCopy = JSON.parse(JSON.stringify(platform));
-                boosterContainer.push(objectToCopy);
-            };
-            if (platform.particle) {
-                objectToCopy = JSON.parse(JSON.stringify(platform));
-                particleContainer.push(objectToCopy);
-            };
-        });
-    
-        relocateAssests();
-        drawHeartIcons();
-        update();
-    });
-    
-    function gameOver() {
-        startButton.classList.remove('none');
-        startButton.textContent = 'Play Again';
-        
-        platformContainer = [];
-        trambolineContainer = [];
-        coinContainer = [];
-        enemyContainer = [];
-        heartContainer = [];
-        boosterContainer = [];
-    };
-
-    function update() {
-
-        clearCanvas();
-        drawPlayer();
-        updatePlayer();
-        drawPlatforms();
-        drawParticles();
-        drawTrambolines();
-        drawBoosters();
-        drawCoins();
-        drawEnemies();
-        drawHearts();
-        drawHeartIcons();
-        updateMinValue(player.y);
-
-        jumpScore = Math.floor((((height / 2) + 90) - minValue) / 10);
-        score = jumpScore + coinCount * 10 + enemyCount * 10;
-        scoreUI.textContent = `${score}`;
-
-        camera.x = Math.max(0, Math.min(camera.x, canvas.width - player.width));
-
-        platformContainer.forEach((platform, index) => {
-            if (platformCollisionDetection(player, platform) && !player.isFlying && player.isJumping) {
-                jumpStrength = 3;
-                jumpDuration = 20;
-                    
-                player.isJumping = true;
-                jumpFrame = 0;
-                player.speedY = -jumpStrength;
-                
-                if (platform.breakCount < 3) {
-
-                    platform.breakCount++;
-                    if (platform.breakCount === 2) {
-                        deletePlatform(platform, index);
-                    };
+            handle(){
+                if ( (camera.height + camera.y) < this.y) {
+                    deleteBackground(this);
+                    backgroundIndex++;
                 };
             };
-            if (rectangularCollisionDetection(player, platform) && !player.isFlying && !player.isJumping) {
-                jumpStrength = 3;
-                jumpDuration = 20;
-                    
-                player.isJumping = true;
-                jumpFrame = 0;
-                player.speedY = -jumpStrength;
-                
-                if (platform.breakCount < 3) {
-                    
-                    platform.breakCount++;
-                    if (platform.breakCount === 2) {
-                        deletePlatform(platform, index);
-                    };
+        };
+
+        function createBackground(){
+            for (let i = 0; i < backgroundIndex; i++) {
+                backgroundsArray.push(new Background());
+                backgroundsArray[i].updateStats();
+            };
+        };
+
+        function handleBackground(){
+            for (let i = 0; i < backgroundsArray.length; i++) {
+                backgroundsArray[i].draw();
+                backgroundsArray[i].handle();
+            };
+        };
+
+        //#endregion
+    
+        //#region Camera
+
+        class Camera {
+            constructor(){
+                this.y = 0;
+                this.x = 0;
+                this.width = canvas.width;
+                this.height = canvas.height;  
+            };
+            update(){
+                camera.x = Math.max(0, Math.min(camera.x, canvas.width - player.width));
+
+                if (minValue - 5 < player.y) {
+                    camera.y = minValue - canvas.height / 2;
                 };
-            };
-            if ( (camera.height + camera.y) < platform.y) {
-                deletePlatform(platform, index);
-            };
-            if (platform.isMoving) {
-                movingPlatformAnim(platform);
             };  
-        });
+        };
 
-        trambolineContainer.forEach((tramboline, index) => {
-            if (platformCollisionDetection(player, tramboline) && !hasCollided) {
-                freezePlayer = true;
-                hasCollided = true;
+        const camera = new Camera();
+        
+        function handleCamera() {
+            camera.update();
+        };
+        
+        //#endregion
+
+        //#region Player
+
+        class Player {
+            constructor(){
+                this.x = (canvas.width / 2) - 7.5;
+                this.y = (canvas.height / 2) + 70; 
+                this.width = 17.8;
+                this.height = 50;
+                this.speedY = 0;
+                this.isJumping = false;
+                this.isFlying = false;
+                this.isDragging = false;
+                this.freeze = false;
+                this.spearOffset = 11;
+                this.jumpStrength = 3;
+                this.jumpDuration = 20; 
+                this.jumpFrame = 0;
+                this.hasCollided = false;
+            };
+
+            //#region drawPlayer
+            draw(){
+
+                // ctx.fillRect(this.x, this.y - camera.y, this.width, this.height);
+
+                const svgPlayer = `
+                    <svg enable-background="new 0 0 375.7 732" version="1.1" viewBox="0 0 375.7 732" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                    <style type="text/css">
+                        .st0{fill:#F7DCC1;}
+                        .st1{fill:#E2A87D;}
+                        .st2{fill:#FFFFFF;}
+                        .st3{fill:#493A39;}
+                        .st4{fill:none;stroke:#E2A87D;stroke-width:2;stroke-linecap:round;stroke-miterlimit:10;}
+                        .st5{fill:#616A72;}
+                        .st6{fill:#B9C2D4;}
+                        .st7{fill:#8C94A2;}
+                        .st8{fill:#B9C2D4;stroke:#818A99;stroke-width:2;stroke-miterlimit:10;}
+                        .st9{fill:#EBECED;}
+                        .st10{fill:#6D5235;}
+                        .st11{fill:#77808B;}
+                        .st12{fill:#6C747E;}
+                        .st13{fill:#9AA3B2;}
+                        .st14{fill:none;stroke:#B7B7B7;stroke-width:4;stroke-linecap:round;stroke-miterlimit:10;}
+                        .st15{fill:#404B5B;}
+                        .st16{fill:#F90A3E;}
+                        .st17{fill:#9C0135;}
+                        .st18{fill:#C70135;}
+                        .st19{fill:#8C8F90;}
+                    </style>
+
+
+                        <rect class="st0" x="181.2" y="309.1" width="31.7" height="50.8"/>
+                        <path class="st1" d="m190.1 334.7h-8.3v-30.9h31.7v7.5c-0.1 12.9-10.5 23.4-23.4 23.4z"/>
+                        <rect class="st0" x="169" y="349.5" width="56.1" height="35"/>
+                        <path class="st0" d="m197.1 324.2c-24.1 0-43.6-19.5-43.6-43.6v-20.9c0-18.2 14.7-32.9 32.9-32.9h21.3c18.2 0 32.9 14.7 32.9 32.9v20.9c0 24.1-19.5 43.6-43.5 43.6z"/>
+                        <path class="st2" d="m177.8 285.4c-4.7 0-8.5-3.8-8.5-8.5v-2.1c0-0.8 0.7-1.5 1.5-1.5h14c0.8 0 1.5 0.7 1.5 1.5v2.1c0 4.7-3.8 8.5-8.5 8.5z"/>
+                        <path class="st2" d="m216 285.4c4.7 0 8.5-3.8 8.5-8.5v-2.1c0-0.8-0.7-1.5-1.5-1.5h-14c-0.8 0-1.5 0.7-1.5 1.5v2.1c0 4.7 3.8 8.5 8.5 8.5z"/>
+                        <path d="m183.9 276.8v-4.1c0-3.4-2.8-6.2-6.2-6.2s-6.2 2.8-6.2 6.2v4.1c0 3.4 2.8 6.2 6.2 6.2s6.2-2.8 6.2-6.2z"/>
+                        <path d="m222.3 276.8v-4.1c0-3.4-2.8-6.2-6.2-6.2s-6.2 2.8-6.2 6.2v4.1c0 3.4 2.8 6.2 6.2 6.2s6.2-2.8 6.2-6.2z"/>
+                        <path class="st3" d="m208.9 276.1 15.8-2.6c2.4-0.4 4.1-2.8 3.7-5.3-0.4-2.6-2.6-4.3-5.1-3.9l-15.8 2.6c-2.4 0.4-4.1 2.8-3.7 5.3s2.7 4.3 5.1 3.9z"/>
+                        <path class="st3" d="m184.9 276.1-15.8-2.6c-2.4-0.4-4.1-2.8-3.7-5.3 0.4-2.6 2.6-4.3 5.1-3.9l15.8 2.6c2.4 0.4 4.1 2.8 3.7 5.3s-2.6 4.3-5.1 3.9z"/>
+                        <path class="st1" d="m191.7 288.5 0.1-13.1c0-2 2.3-3.6 5.2-3.7 2.8 0 5.1 1.6 5.1 3.6l-0.1 13.1c0 2-2.3 3.6-5.2 3.7-2.8 0-5.1-1.6-5.1-3.6z"/>
+                        <path class="st4" d="m183.4 304.3s9.4 2.9 17.2 2.2c7.8-0.6 9.8-4.9 9.8-4.9"/>
+
+
+                        <rect class="st5" x="150.3" y="499.3" width="34.3" height="101.5"/>
+                        <rect class="st5" x="150.3" y="603.7" width="34.3" height="94"/>
+                        <path class="st6" d="m185.8 606-13.2 13.2c-2.8 2.8-7.4 2.8-10.3 0l-13.2-13.2c-2.8-2.8-2.8-7.4 0-10.3l13.2-13.2c2.8-2.8 7.4-2.8 10.3 0l13.2 13.2c2.8 2.9 2.8 7.5 0 10.3z"/>
+
+
+                        <rect class="st5" x="205.3" y="603.7" width="34.3" height="94"/>
+                        <rect class="st5" x="206.3" y="500.5" width="34.3" height="100.4"/>
+                        <path class="st6" d="m241.8 606-13.2 13.2c-2.8 2.8-7.4 2.8-10.3 0l-13.2-13.2c-2.8-2.8-2.8-7.4 0-10.3l13.2-13.2c2.8-2.8 7.4-2.8 10.3 0l13.2 13.2c2.9 2.9 2.9 7.5 0 10.3z"/>
+
+
+                        <path class="st7" d="m189.9 679.6v51.6h-72.3c-1.8 0-3.2-1.4-3.2-3.2 0-7.1 2.9-13.6 7.6-18.2s11.1-7.6 18.2-7.6h4.9v-22.6h44.8z"/>
+
+
+                        <path class="st7" d="m276.7 728.8c0 1.8-1.5 3.2-3.2 3.2h-73.5v-51.6h44.9v22.6h6c7.1 0 13.6 2.9 18.2 7.5 4.7 4.7 7.6 11.2 7.6 18.3z"/>
+
+
+                        <path class="st5" d="m248.2 348.9v132.3h-102.6v-132.3h26.1v6.3c0 7 2.8 13.4 7.4 18s10.9 7.4 18 7.4c14 0 25.4-11.4 25.4-25.4v-6.3h25.7z"/>
+                        <path class="st7" d="m250.1 498.6-46.3 46.3c-3.6 3.6-9.5 3.6-13.2 0l-46.3-46.3 6-6h93.9l5.9 6z"/>
+                        <path class="st6" d="m247.4 499.3h-100.5c-3.8 0-6.9-3.1-6.9-6.9v-11.2c0-3.8 3.1-6.9 6.9-6.9h100.6c3.8 0 6.9 3.1 6.9 6.9v11.2c0 3.9-3.1 6.9-7 6.9z"/>
+                        <path class="st8" d="m215.5 492-13.2 13.2c-2.8 2.8-7.4 2.8-10.3 0l-13.2-13.2c-2.8-2.8-2.8-7.4 0-10.3l13.2-13.2c2.8-2.8 7.4-2.8 10.3 0l13.2 13.2c2.9 2.8 2.9 7.4 0 10.3z"/>
+                        
+                            <path class="st9" d="m143.2 497.1c-4.4-10.2-2.4-24.8 11.9-21.5 0.5 0.1 0.5 1-0.1 1-2.4 0.2-4.8 0.5-6.8 1.5-6.6 3.4-5.1 12.5-4.1 18.7 0.2 0.6-0.7 0.9-0.9 0.3z"/>
+                        
+
+
+                        
+                            <rect class="st5" transform="matrix(.065703 -.9978 .9978 .065703 -314.5 523.92)" x="79.2" y="414.1" width="86.7" height="31.6"/>
+                        <polygon class="st5" points="35.3 498.9 31.9 476.7 116.9 459.1 121.7 490.3"/>
+                        <path class="st6" d="m135 484.6-17.1 7.6c-3.7 1.6-7.9 0-9.6-3.7l-7.6-17.1c-1.6-3.7 0-8 3.7-9.6l17.1-7.6c3.7-1.6 8 0 9.6 3.7l7.6 17.1c1.6 3.6-0.1 7.9-3.7 9.6z"/>
+                        <path class="st7" d="m38.1 485.5c1.3 9.4 10 16.1 19.5 14.8l24-3.2s6.7-8.8 5.4-18.2-10.1-16.1-10.1-16.1l-23.9 3.2c-9.5 1.3-16.1 10-14.9 19.5z"/>
+                        <path class="st6" d="m79.2 479.9c-1.3-9.4-10.1-16.1-10.1-16.1l-16.1 2.2 24-3.2s8.8 6.7 10.1 16.1-5.4 18.2-5.4 18.2l-7.8 1c-0.1 0 6.6-8.7 5.3-18.2z"/>
+                        <path class="st7" d="m14.1 498.8c4.6 8 14.8 10.8 22.8 6.3l4.9-2.8c8-4.5 10.8-14.8 6.3-22.8-4.6-8-14.8-10.8-22.8-6.3l-4.9 2.8c-8 4.5-10.8 14.8-6.3 22.8z"/>
+                        <path class="st10" d="m22.7 681.7c-4.1 0-7.5-3.4-7.5-7.5v-599.4c0-4.1 3.4-7.5 7.5-7.5s7.5 3.4 7.5 7.5v599.4c0 4.1-3.4 7.5-7.5 7.5z"/>
+                        
+                            <path class="st11" d="m7.8 487.7c2 1.7 5 1.4 6.7-0.6l7.1-8.6c1.7-2 1.4-5-0.6-6.7s-5-1.4-6.7 0.6l-7.1 8.6c-1.7 2-1.4 5 0.6 6.7z"/>
+                            <path class="st11" d="m13.6 474.4c-0.4 2.6 1.4 5 4 5.4l11.1 1.6c2.6 0.4 5-1.4 5.4-4s-1.4-5-4-5.4l-11.1-1.6c-2.6-0.4-5 1.4-5.4 4z"/>
+                        
+                        <path class="st12" d="m11.5 506.7c0.6 2.5 3.1 4.2 5.6 3.6l10.9-2.4c2.6-0.6 4.2-3.1 3.6-5.6s-3.1-4.2-5.6-3.6l-10.9 2.3c-2.6 0.6-4.2 3.1-3.6 5.7z"/>
+                        <path class="st12" d="m6 500.2c0.6 2.5 3.1 4.2 5.6 3.6l10.9-2.4c2.6-0.6 4.2-3.1 3.6-5.6s-3.1-4.2-5.6-3.6l-10.9 2.4c-2.6 0.5-4.2 3.1-3.6 5.6z"/>
+                        <path class="st12" d="m2.8 494.6c0.6 2.5 3.1 4.2 5.6 3.6l10.9-2.4c2.6-0.6 4.2-3.1 3.6-5.6s-3.1-4.2-5.6-3.6l-10.9 2.4c-2.5 0.6-4.2 3.1-3.6 5.6z"/>
+                        <path class="st12" d="m1.1 486.9c0.6 2.5 3.1 4.2 5.6 3.6l10.9-2.4c2.6-0.6 4.2-3.1 3.6-5.6s-3.1-4.2-5.6-3.6l-10.9 2.4c-2.5 0.5-4.1 3-3.6 5.6z"/>
+                        <polygon class="st6" points="22.7 92.4 3.7 45.5 22.5 -1.5 22.5 -1.5 41.6 45.5"/>
+                        <polygon class="st13" points="22.7 -1.1 22.7 92.4 3.7 45.5 22.5 -1.5"/>
+                        <rect class="st7" x="11.9" y="66.2" width="21.6" height="26.2"/>
+
+
+                        <path class="st6" d="m254.4 390.3 34.5-4.7c0.9-0.1 1.5-0.9 1.4-1.8-2.7-20-21.1-33.9-41.1-31.2-0.9 0.1-1.5 0.9-1.4 1.8l4.7 34.5c0.2 0.9 1 1.6 1.9 1.4z"/>
+                        <path class="st6" d="m142.7 388.7-34.8-2.3c-0.9-0.1-1.6-0.8-1.5-1.7 1.3-20.1 18.7-35.3 38.8-34 0.9 0.1 1.6 0.8 1.5 1.7l-2.3 34.8c0 0.8-0.8 1.5-1.7 1.5z"/>
+                        
+                            <path class="st9" d="m112.3 376.9c0.5-2.5 1.4-4.8 2.5-7.1s2.4-4.5 4-6.5 3.4-3.9 5.7-5.3c2.2-1.4 5.1-2.2 7.7-1.6 0.3 0.1 0.4 0.4 0.4 0.6s-0.2 0.3-0.4 0.4c-2.4 0.4-4.3 1.6-6 3s-3.3 3.2-4.8 5-2.8 3.8-4.2 5.8l-4 6.1c-0.1 0.2-0.5 0.3-0.7 0.1-0.1-0.1-0.2-0.3-0.2-0.5z"/>
+                        
+                        <path class="st7" d="m248.2 406.1c-0.5 0.4-1.1 0.8-1.7 1.2l-42.2 27.4c-4.4 2.9-10.1 2.9-14.6 0.1l-42.1-26.4c-0.7-0.5-1.4-0.9-2.1-1.4-11.6-8.6-16.7-23.6-12.4-37.6l5.2-16.9c1-3.3 3.9-5.6 7.2-6 0.3 0 0.6-0.1 1-0.1h25.1v3.4c0 7 2.8 13.4 7.4 18s10.9 7.4 18 7.4c14 0 25.4-11.4 25.4-25.4v-3.4h24.7c0.4 0 0.7 0 1.1 0.1 3.2 0.4 6 2.7 7 5.8l5.1 15.5c4.8 14.1-0.2 29.6-12.1 38.3z"/>
+                        
+                            <path class="st9" d="m138.4 366.9c-0.2-8.9 5.6-23.5 16.7-17.9 0.5 0.2 0.2 1.1-0.3 1-10.2-2.1-13.6 9.2-15.4 17-0.1 0.6-1 0.5-1-0.1z"/>
+                        
+                        <path class="st14" d="m221.7 346.4c0.1 1.1 0.2 2.2 0.2 3.3 0 13.7-11.1 24.8-24.9 24.8-13.7 0-24.9-11.1-24.9-24.8 0-1.1 0.1-2.2 0.2-3.3"/>
+
+
+                        
+                            <rect class="st5" transform="matrix(.9908 -.1355 .1355 .9908 -55.718 41.553)" x="261.6" y="386.7" width="31.6" height="86.7"/>
+                        <path class="st6" d="m265.8 480.6 14.9 11.3c3.2 2.4 7.7 1.8 10.2-1.4l11.3-14.9c2.4-3.2 1.8-7.7-1.4-10.2l-14.9-11.3c-3.2-2.4-7.7-1.8-10.2 1.4l-11.3 14.9c-2.4 3.2-1.8 7.8 1.4 10.2z"/>
+                        
+                            <path class="st15" d="m368.7 509.1s-0.4 41.6-83.9 78.6c0 0-86.2-41.6-82.6-77.7 0 0 6.6-90.4-7.8-104.9l86.9-24 93.8 24c0.1 0.1-15.6 35.6-6.4 104z"/>
+                            <path class="st5" d="m359.5 505.2s-0.4 37-74.6 69.9c0 0-76.8-37-73.5-69.1 0 0 5.9-80.5-6.9-93.3l77.3-21.4 83.5 21.4c-0.1 0-14 31.6-5.8 92.5z"/>
+                        
+                        
+                            <image transform="matrix(.1863 0 0 .1863 227.63 415.41)" width="614" height="620" enable-background="new" overflow="visible" xlink:href="8D47737E.png">
+                        </image>
+
+
+                        
+                            <path class="st16" d="m199.2 181.6 3.1-3c-0.5-2-1.2-4-2-5.9-3.5 0.4-7.1 0-10.4-1.4l6.2-5.9c-3.6-4.9-8.4-8.9-14-11.6l-1.9 69.1c13.3-5.6 22.9-18.5 23.3-33.9 0.1-2.2-0.1-4.4-0.4-6.6-1.4 0-2.7-0.3-3.9-0.8z"/>
+                            <path class="st17" d="m223.4 211.3-43.3 11.7c5.9 7.2 15.8 10.8 25.4 8.2 9.7-2.7 16.4-10.7 17.9-19.9z"/>
+                            <path class="st18" d="m220.3 184.9-40.2 38c10.7 4.4 23.5 2.5 32.4-6 9-8.4 11.6-21 7.8-32z"/>
+                        
+                        <path class="st5" d="m245.7 257.3v12.9c0 3-2.4 5.4-5.4 5.4h-0.7c-2.1 0-4.2-1.3-4.9-3.3-0.5-1.3-1.2-2.5-2.2-3.6l-9-9.6c-4-4.3-10.4-4.3-14.4 0l-9 9.6c-0.2 0.2-0.3 0.4-0.5 0.5h-3.4c-1.5 0-2.9-0.6-3.9-1.7l-7.4-7.9c-4-4.3-10.4-4.3-14.4 0l-9 9.6c-0.8 0.9-1.5 1.9-2 3-0.9 2-2.8 3.4-5 3.4h-0.8c-3 0-5.4-2.4-5.4-5.4v-12.9c0-20.5 15.5-37.1 34.6-37.1h28c19.3 0 34.8 16.6 34.8 37.1z"/>
+                        
+                            <path class="st6" d="m155.1 249.1c2-8.4 9.7-22.4 20-20.5 0.5 0.1 0.5 0.9 0 1-8.5 1.7-14.4 13.2-19 19.9-0.3 0.5-1.1 0.1-1-0.4z"/>
+                        
+                        <rect class="st5" x="148.4" y="260.1" width="13" height="50.7"/>
+                        <rect class="st5" x="232.6" y="259.7" width="13" height="47.4"/>
+                        <polygon class="st19" points="157.8 303.5 173.8 311.6 178.3 325.3 165.9 329 149.9 320.9 148.3 315.8 148.3 304.4"/>
+                        <polygon class="st19" points="236.6 303.5 220.6 311.6 216.1 325.3 228.5 329 244.5 320.9 246.1 315.8 246.1 304.4"/>
+
+                    </svg>
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgPlayer)}`;
                 
-                setTimeout(() => {
-                    freezePlayer = false;
-                    trambolineUsed = true;
-                    jumpStrength = 5;
-                    jumpDuration = 100;
+                ctx.drawImage(img, this.x - 10, this.y - 20 - camera.y, this.width + 10, this.height + 20);
+            };
+            //#endregion
+            
+            update(){
+
+                if (!player.freeze) {
+                    player.speedY += world.gravity;
+                    player.y += player.speedY;
+                
+                    spear.y = player.y - 20;
+                    
+                    if (player.jumpFrame === 100 && world.trambolineUsed) {
+                        player.isFlying = false;
+                        world.trambolineUsed = false;
+                    } else if (player.jumpFrame === 300) {
+                        player.isFlying = false;
+                    };
+            
+                    if (player.isJumping && player.jumpFrame < player.jumpDuration) {
+                        player.speedY = -player.jumpStrength;
+                        player.jumpFrame++;
+                    } else {
+                        player.jumpFrame = 0;
+                        player.isJumping = false;
+                    };
+                };
+            };
+        };
+
+        const player = new Player();
+
+        function handlePlayer() {
+            player.draw();
+            player.update();
+        };
+
+        //#endregion
+
+        //#region Spear
+
+        class Spear {
+            constructor(){
+                this.x = player.x - player.spearOffset;
+                this.y = player.y - 20; 
+                this.width = 5;
+                this.height = 30;
+            };
+            // draw(){
+            //     ctx.fillRect(spear.x, spear.y - camera.y, spear.width, spear.height);
+            // };
+        };
+
+        // function handleSpear() {
+        //     spear.draw();
+        // };
+
+        const spear = new Spear();
+
+        //#endregion
+
+        //#region Platform
+
+        let platformsArray = [];
+
+        let statIndex = 0;
+
+        const firstPlatformY = canvas.height/2 + 90;
+        const firstPlatformX = canvas.width/2 - 25/2;
+
+        class Platform {
+            constructor(){
+                this.id = 0;
+                this.x = firstPlatformX;
+                this.y = firstPlatformY;
+                this.width = 25;
+                this.height = 7.5;
+                this.moveStrength = 0.75;
+                this.animDuration = 500;
+                this.animFrame = 0;
+                this.type = 'none';
+
+                this.id = statIndex;
+                statIndex++;
     
+                let yMin = firstPlatformY - 135;
+                let yMax = firstPlatformY;
+                let yParam = Math.random() * (yMax - yMin) + yMin;
+    
+                if (yRate < 0 ) {
+                    yParam = (yRate * Math.random()) * (yMax - yMin) + yMin;
+                };
+    
+                let xParam = Math.random() * (canvas.width - this.width);
+
+                let wParam = Math.random();
+    
+                if (wParam > 0.5) {
+                    this.width = 50;
+                };
+            
+                let firstParam = Math.floor(Math.random() * 1000);
+                let secondParam = Math.floor(Math.random() * 2);
+
+                if (this.id !== 0) {
+                    if (firstParam < 10) {
+                        if (secondParam >= 1) {
+                            this.type = 'tramboline';
+                        } else {
+                            this.type = 'booster';
+                        };
+                    } else if (firstParam < 20) {
+                        this.type = 'heart';
+    
+                    } else if (firstParam < 120) {
+                        this.type = 'particle';
+                    
+                    } else if (firstParam < 270) {
+                        this.type = 'breakable'; 
+                    
+                    } else if (firstParam < 420) {
+                        this.type = 'moving'; 
+                    
+                    }
+                        else if (firstParam < 620) {
+                        this.type = 'coin';
+                    
+                    } else if (firstParam < 920) {
+                        this.type = 'enemy';
+                    } else {
+                        this.type = 'none';
+                    };
+                    this.x = xParam;
+                    this.y = yParam;
+                };
+            
+            };
+
+            //#region drawPlatforms
+
+            draw(){
+                const svgPlatform = `
+                <svg enable-background="new 0 0 293.3 45.3" version="1.1" viewBox="0 0 293.3 45.3" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">
+                    <style type="text/css">
+                        .st0{fill:#7A6444;}
+                        .st1{fill:#B29136;}
+                        .st2{fill:#999E7D;}
+                        .st3{fill:#AF6604;}
+                        .st4{fill:#82F27C;}
+                    </style>
+
+                        <path class="st0" d="M293.3,19.8v5.7c0,3.7-1,7.1-2.8,10.1c-3.5,5.8-9.8,9.8-17.1,9.8H25c-10.9,0-19.8-8.9-19.8-19.8v-5.7   c0-2.6,0.5-5,1.4-7.3C9.5,5.2,16.6,0,25,0h248.4c7,0,13.1,3.6,16.7,9.1c1.1,1.7,1.9,3.6,2.5,5.6C293,16.3,293.3,18,293.3,19.8z"/>
+                        <circle class="st1" cx="17.7" cy="22.7" r="10.6"/>
+                        <circle class="st2" cx="38.2" cy="28" r="5.3"/>
+                        <circle class="st3" cx="54.1" cy="16.7" r="10.6"/>
+                        <circle class="st1" cx="76.1" cy="24.4" r="7.6"/>
+                        <circle class="st2" cx="111.8" cy="17.4" r="5.3"/>
+                        <circle class="st3" cx="125.4" cy="25" r="8.3"/>
+                        <path class="st3" d="m176.1 37.9c0 2.9-1.1 5.5-3 7.4h-15.2c-1.9-1.9-3-4.5-3-7.4 0-5.9 4.7-10.6 10.6-10.6s10.6 4.8 10.6 10.6z"/>
+                        <circle class="st1" cx="205.6" cy="14.7" r="10.6"/>
+                        <circle class="st1" cx="146.4" cy="16.7" r="7.6"/>
+                        <circle class="st1" cx="98.4" cy="35.6" r="7.6"/>
+                        <circle class="st2" cx="189.7" cy="25" r="5.3"/>
+                        <circle class="st3" cx="233.2" cy="21.2" r="9.1"/>
+                        <circle class="st2" cx="250" cy="32" r="4.7"/>
+                        <path class="st1" d="m293.3 19.8v5.7c0 3.7-1 7.1-2.8 10.1h-0.4c-5.9 0-10.6-4.7-10.6-10.6s4.8-10.6 10.6-10.6c0.9 0 1.7 0.1 2.5 0.3 0.4 1.6 0.7 3.3 0.7 5.1z"/>
+                        <path class="st4" d="m58.1 0c0 4-1.6 7.7-4.3 10.4s-6.3 4.3-10.4 4.3c-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m87.8 0c0 4-1.6 7.7-4.3 10.4s-6.3 4.3-10.4 4.3c-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m117.1 0c0 4-1.6 7.7-4.3 10.4s-6.3 4.3-10.4 4.3c-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m146.4 0c0 4-1.6 7.7-4.3 10.4s-6.3 4.3-10.4 4.3c-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m176.1 0c0 4-1.6 7.7-4.3 10.4s-6.3 4.3-10.4 4.3c-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m264.4 0c0 0.8-0.1 1.6-0.2 2.4-0.5 3.1-2 5.9-4.1 8-2.6 2.7-6.3 4.3-10.4 4.3-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m205.4 0c0 4-1.6 7.7-4.3 10.4s-6.3 4.3-10.4 4.3c-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m234.7 0c0 4-1.6 7.7-4.3 10.4s-6.3 4.3-10.4 4.3c-8.1 0-14.6-6.6-14.6-14.7h29.3z"/>
+                        <path class="st4" d="m285.2 18.7h-1.7c-10.3 0-18.7-8.4-18.7-18.7h20c5.3 0 9.6 4.3 9.6 9.6-0.1 5-4.2 9.1-9.2 9.1z"/>
+                        <path class="st4" d="m10.1 18.7c10.3 0 18.7-8.4 18.7-18.7h-18.3c-5.3 0-9.5 4.3-9.5 9.6-0.1 5 4 9.1 9.1 9.1z"/>
+                </svg>
+
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgPlatform)}`;
+                
+                ctx.drawImage(img, this.x, this.y - camera.y, this.width, this.height);
+            };
+
+            //#endregion
+
+            //#region handlePlatforms
+
+            handle(){
+                if (platformCollisionDetection(player, this) && !player.isFlying && player.isJumping) {
+                    player.jumpStrength = 3;
+                    player.jumpDuration = 20;
+                        
+                    player.isJumping = true;
+                    player.jumpFrame = 0;
+                    player.speedY = -player.jumpStrength;
+                    
+                    if (this.breakCount < 3) {
+
+                        this.breakCount++;
+                        if (this.breakCount === 2) {
+                            deletePlatform(this);
+                        };
+                    };
+                };
+                if (rectangularCollisionDetection(player, this) && !player.isFlying && !player.isJumping) {
+                    player.jumpStrength = 3;
+                    player.jumpDuration = 20;
+                        
+                    player.isJumping = true;
+                    player.jumpFrame = 0;
+                    player.speedY = -player.jumpStrength;
+                    
+                    if (this.breakCount < 3) {
+                        
+                        this.breakCount++;
+                        if (this.breakCount === 2) {
+                            deletePlatform(this);
+                        };
+                    };
+                };
+                if ( (camera.height + camera.y) < this.y) {
+                    deletePlatform(this);
+                };
+            };
+
+            //#endregion
+
+            //#region platformAnimation
+
+            animation(){ 
+                if (this.type == 'particle' || this.type == 'moving') {
+
+                    if (this.animDuration > this.animFrame) {
+    
+    
+                        if (this.animDuration / 2 <= this.animFrame) {
+                            this.x += -this.moveStrength ;
+                            this.animFrame++;
+                        } else {
+                            this.x += this.moveStrength;
+                            this.animFrame++;
+                        };
+                        if (this.animFrame === this.animDuration) {
+                            this.animFrame = 0;
+                        };
+                    };    
+                    if (this.x < 0) {
+                        this.x += canvas.width;
+                    } else if (this.x + this.width > canvas.width) {
+                        this.x -= canvas.width;
+                    };
+                };
+            };
+
+            //#endregion
+
+        };
+
+        let spawnFrequency;
+        let yRate = 0;
+
+        function platformSpawner() {
+            const spawnRate = Math.random();
+            
+            if (spawnRate < 0.5) {
+                spawnFrequency = 3;
+            } else {
+                spawnFrequency = 4;
+            };
+
+            for (let i = 0; i < spawnFrequency; i++) {
+                platformsArray.push(new Platform());
+                console.log(platformsArray);
+            };
+            
+            yRate--;
+        };
+
+        function handlePlatforms() {
+            for (let i = 0; i < platformsArray.length; i++) {
+                platformsArray[i].draw();
+                platformsArray[i].animation();
+                platformsArray[i].handle();
+            };
+        };
+
+        //#endregion
+
+        //#region Tramboline
+
+        let trambolinesArray = [];
+
+        class Tramboline {
+            constructor(){
+                this.id;
+                this.width = 50;
+                this.height = 7.5;
+                this.x;
+                this.y;
+            };
+            updateStats(platform){
+                this.x = platform.x - 50;
+                this.y = platform.y;
+                this.id = platform.id;
+            };
+
+            //#region drawTramboline
+
+            draw(){
+
+                // ctx.fillRect(this.x, this.y - camera.y, this.width, this.height);
+
+                const svgTramboline = `
+                    <svg enable-background="new 0 0 600 600" version="1.1" viewBox="0 0 600 600" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">
+                        <style type="text/css">
+                            .st0{fill:#4C4534;}
+                            .st1{fill:#0FA319;}
+                            .st2{fill:#3BBC3E;}
+                        </style>
+
+                            <path class="st0" d="m180.85 299.63c26.85 1.47 54.45 2.39 81.34 2.54 22.59 0.44 49.17-0.34 69.95 11.23 12.97 8.35 27.74 11.37 43.4 12.27 21.39 1 43.3-2.01 64.09-7.63 0.32-0.1 0.66 0.08 0.75 0.41 0.08 0.29-0.07 0.58-0.33 0.7-10.07 4.52-20.51 8.18-31.21 11.21-10.7 3-21.7 5.28-33.02 6.41-16.99 1.75-35.97 0.48-52.08-6.84-13.68-4.79-28.67-3.02-43.62-1.46-26.97 3.73-54.69 7.81-81.84 10.63-5.55 0.6-11.01 1.18-16.68 1.72-11.36 1.08-21.45-7.25-22.53-18.61-1.31-12.48 9.28-23.42 21.78-22.58z"/>
+
+
+                            <path class="st0" d="m330.43 291.53c-9.76 5.09-19.86 9.44-30.13 13.38-9.13 3.42-18.45 6.57-28.08 8.5l-1.07 0.21c-1.36 0.42-2.31-0.48-3.46-1.52l-0.28-3.34s-2.86 0.21-2.86 0.21c-0.76 0.05-0.87-1.12-0.09-1.18h0.05s2.8-0.2 2.8-0.2l-0.28-3.34c0.8-1.12 1.33-2.24 2.62-2.2l0.95-0.07c14.62-1.42 29.05-4.91 43.43-8l16-3.54c0.32-0.07 0.64 0.13 0.72 0.45 0.04 0.24-0.09 0.51-0.32 0.64z"/>
+
+
+                            <path class="st0" d="m363.25 330.11c1.23 2.17 3.3 4.12 5.25 5.66 6.07 4.77 13.5 7.63 21.05 9.5 8.2 2.1 17.27 2.93 25.74 3.27 0.72 0 0.82 1.14 0.03 1.19-15.84 0.97-32.52 0.55-47.03-6.69-2.37-1.19-4.8-2.74-6.88-4.39-1.78-1.57-3.33-2.87-4.68-4.99l-1.57-2.51c-1.32-2.1-0.68-4.87 1.43-6.19 3.48-2.23 7.92 1.27 6.66 5.15z"/>
+
+                        <path class="st1" d="m323.91 291.77c-2.84-10.64 6.04-20.77 19.84-22.62 2.83 10.65-6.05 20.77-19.84 22.62z"/>
+                        <path class="st1" d="m323.88 291.98c6.54-9.41 21.95-12.73 34.43-7.42-6.54 9.4-21.96 12.73-34.43 7.42z"/>
+                        <path class="st1" d="m327.51 292.83c-14.08-0.01-25.83-8.78-26.25-19.58 14.08 0.01 25.83 8.77 26.25 19.58z"/>
+                        <path class="st1" d="m462.18 335.36c-13.56 2.8-27.64-3.84-31.47-14.82 13.56-2.79 27.64 3.85 31.47 14.82z"/>
+                        <path class="st1" d="m355.42 310.68c-14.08-0.01-25.83-8.78-26.25-19.58 14.08 0.01 25.83 8.78 26.25 19.58z"/>
+                        <path class="st1" d="m394.81 374.43c-3.9-10.96 3.91-22.17 17.45-25.03 3.89 10.97-3.92 22.17-17.45 25.03z"/>
+                        <path class="st1" d="m431.91 319.96c-13.56 2.8-27.64-3.84-31.47-14.82 13.57-2.8 27.65 3.84 31.47 14.82z"/>
+                        <path class="st1" d="m327.42 318.25c-10.37-7.55-11.05-19.94-1.51-27.66 10.36 7.55 11.04 19.94 1.51 27.66z"/>
+                        <path class="st1" d="m432.2 348.57c-10.41-7.84-11.15-20.83-1.66-29 10.41 7.83 11.15 20.82 1.66 29z"/>
+                        <path class="st1" d="m434.36 368.97c-12.69 0.02-23.26-8.23-23.61-18.44 12.69-0.02 23.26 8.23 23.61 18.44z"/>
+                        <path class="st1" d="m411.11 352.3-0.13 0.05c-3.98-6.27-0.97-13.82 6.73-16.87l0.13-0.05c3.98 6.27 0.97 13.83-6.73 16.87z"/>
+                        <path class="st2" d="m324.4 291.81c2.07-7.95 12.2-12.91 22.63-11.07-2.07 7.94-12.2 12.9-22.63 11.07z"/>
+                        <path class="st2" d="m431.03 320.47c5.87-7.01 17.82-8.72 26.69-3.82-5.88 7-17.82 8.72-26.69 3.82z"/>
+                        <path class="st2" d="m324.57 292.18c-8.59-5.01-10.48-14.29-4.21-20.73 8.59 5.01 10.48 14.29 4.21 20.73z"/>
+                        <path class="st2" d="m334.04 311.93c-8.59-5.01-10.48-14.29-4.21-20.73 8.59 5.01 10.48 14.29 4.21 20.73z"/>
+                        <path class="st2" d="m432.84 320.1c-9.86-3.42-14.6-12.54-10.61-20.39 9.86 3.42 14.61 12.55 10.61 20.39z"/>
+                        <path class="st2" d="m442.57 339.87c-10.09-2.92-15.53-11.8-12.15-19.84 10.08 2.91 15.52 11.8 12.15 19.84z"/>
+                        <path class="st2" d="m411.58 350.85c-10.43-1.89-17.19-10.19-15.1-18.53 10.43 1.89 17.19 10.19 15.1 18.53z"/>
+                        <path class="st2" d="m415.7 370.04c-8.58-5.23-10.44-14.96-4.15-21.73 8.58 5.24 10.44 14.96 4.15 21.73z"/>
+                    </svg>
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgTramboline)}`;
+                
+                ctx.drawImage(img, this.x - 25, this.y - 55 - camera.y, 100, this.height + 100);
+            };
+
+            //#endregion
+
+            animate(){
+                if (platformCollisionDetection(player, this) && !player.hasCollided) {
+                    player.freeze = true;
+                    player.hasCollided = true;
+                    
+                    setTimeout(() => {
+                        player.freeze = false;
+                        world.trambolineUsed = true;
+                        player.jumpStrength = 5;
+                        player.jumpDuration = 100;
+        
+                        player.isJumping = true;
+                        player.isFlying = true;
+                        player.jumpFrame = 0;
+                        player.speedY = -player.jumpStrength;
+                        player.hasCollided = false;
+                    }, 400);
+                };
+                if ( (camera.height + camera.y) < this.y) {
+                    deleteAsset(this);
+                };
+            };
+        };
+
+        let trambolineIndex = 0;
+        
+        function createTrambolines(platform) {
+            trambolinesArray.push(new Tramboline());
+            trambolinesArray[trambolineIndex].updateStats(platform);
+            trambolineIndex++;
+        };
+
+        function handleTrambolines(){
+            for (let i = 0; i < trambolinesArray.length; i++) {
+                trambolinesArray[i].draw();
+                trambolinesArray[i].animate();
+            };
+        };
+
+        //#endregion
+
+        //#region Particle
+
+        let particlesArray = [];
+
+        class Particle {
+            constructor(){
+                this.x;
+                this.y;
+                this.type;
+                this.animFrame = 0;
+                this.animDuration = 500;
+                this.moveStrength = world.gravity * 5;
+                this.radius = world.radius/2;
+                this.startAngle = 0; 
+                this.endAngle = Math.PI * 2;
+                this.id;
+            };
+            updateStats(platform){
+                this.id = platform.id;
+                this.x = platform.x + platform.width/2;
+                this.y = platform.y + this.radius;
+                this.type = platform.type;
+            };
+
+            //#region drawParticle
+
+            draw(){                
+                const svgParticle = `
+                <svg enable-background="new 0 0 53 42" version="1.1" viewBox="0 0 53 42" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                    <image transform="translate(0 -1)" width="54" height="44" overflow="visible" xlink:href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADYAAAAsCAYAAAAuCEsgAAAACXBIWXMAAAsSAAALEgHS3X78AAAK 50lEQVRogb1aTWwkRxV+Vf03PTMee9f2erO7CLKAkLhEQpy4cQJyAs4EziAOBE4JOSAkiEBKbsAN JJAIEopYQIIbClLIj1ggbAARoUSroERabzy2x/PXf1XovapXXTUzduxdh9q0errdP/XV99X33quO gHNsP3rym7pRDUQygqapIYpi+PJj3znXd5y23dNLEUBVFVCVBSilaJOgobu2QYBAAxwM3wEpBQgh QUgJQgjo5F3o5L3/C9hTvQCB4B7BaKVg0OvQvsGtaQhY0+BxA8rupYxgOp2C1gBCACRpSudkFNE+ 7/bfU4AnPhgBKdXQ74trOURSQm2BFGXp2FJKQxxFBFQ5cIru00ifBhhPJoQQ5RnHCURxTFuadt4T gCsfyAyZTmnaX76wRp2ta2RDmvNaE1NKKygKC1Qrkh/+raorAoUtS1O4c7eVJzKXphlUdQlZpwud TvdcAS496BtffFh31wZw5doHgcFdubgGygKhvTK/6VhpI0ErTWTLXWc3lGIcxWaeZSm8fvtNenYU IcCWwfOU50pgdBbnhpT0Mmwfe+ghAmE6rejvDBKPlQe2rmsHDiWKoIUUIIWENEkI0PDgAPaGByAj ScDiJIE4TiHNzkeay8C+9LD2j9EAsKP9fh+StAMPXPsAXLu0RVJUdkOmEIhRrpUoOiVK1moRByCK IgKK51GSeN1/3rjtgUtJolmW3zc4uXSGXEyCFMa9yqKAqihhPB7D0eE+/OvWTXjhpeehccB4fAS4 ESGTkHbkzL8kiekcyhFB0culhI986DoNErprWcwphJTl3M3z8wMGAEmckeb3h3vQ1MYVEVxRFARh PpvBK/94lUARU64Jkq9hJCIA+DuOY3sseeyC9uHrDxJwkm/TQFUUMJ9P7wtcAAznF9ox9h4Zi8mS I5IKNjSGsixJmuPDIdzZG1KcMnLUrsPEihBkGMYF7cvIDaXhV4RKe//VKzBY61tDwpBRw3w2uWdw S4zhPIpkDIejoZVUZDqL8rF9QWDFfA6v//sWAaobA8ptuv2NssYbWX6wAhTYa7c3L8L7rlym46au aX+vsgyA5fkadeRwtEdsdTodkmQn7wQdYoNAab784nOtQdg5ZyKfdU1zo0UExCTu8Vn0U7TSxPtx IHe2NukYmTOxsj4zOAcMZYjzo65KmgtkIDKCfn9ADHTyvO2gZQ0ozaqgqGqoKVBrm30Y1vhqYQE5 UPYvSoObp20Wo2hQ1/o9k8HUFRnLWZtkUL3eBsRRAvNiYid80spQGGsW1snMaAuKXdhuvvgcyZEk qf0gIty1YgmUyWrwGX4MxNM4ON08B43xsWmgrgqYTY/OxBoBw3klZQwHh7vUcTKQBe/yO8jg3DVC wHh86OIads44ooBIoolYp7QDFGQx3m/caqXc762LF40UbcA/i5lIZAvdanR013Z80U80JarEYpI4 kMEeAF7759/gv2+8ZmJWbEDg3zFxxnOandNJT3sDwXmnTdfshsxtrG/QOzjsnImxspqbMOqZg79P LCAcAL6GY5IAwyACGO7tQieNzT1xBFkSGRlDyyT+blQrOwKkjYyVDjcOkeuDAe250jgNaxRUtC0x mKHVTQTmwUAxzmHnETzWXLf+/lfoZglJUNskmucQVQc2SSbXVJ7hLIAK46JJzXC+TScjOvfDJx8/ EZw8FseKhrDQsViyIpLOxXj+lcWUc2gnOZ5DTAGDqS1Qusbmm4099ocZN5QkuyeCQ7c8iTlB2Xxw BpybgZtHAuq6gqoqSetU/ntGgh1GtrDNplNy0yTNqBNHo0P43Gc/T3+bzCrTOTAAwIuJxJQyUE7K fg8PDyi24hSI0xSSJFuZMLdO8S65NNo/ZRA2E8fLI8/6EQyCz7IMkiQl1aZpCpevXIUXXn4Jbtz4 FQz6uXE+lKML6Caot7NBnCiijfV1kiS+QFPhu5o5doCVbgjA6tH2Mmv5aOFx7MYDS42imLcPlQYo Z/gIYOvSJXj22V/CzuaGO6esOhu12C8RpGiuO3S9oMFDcFQXmlm8BI7evCp3WwToUHBM41hGOZE2 gZddzmYKZNl15Vjd3N6GZ37x85YlaxKwCGLh9X7uib+TOIdet2/AUQCvoFFh2iW5x5g+HQuNHq4g yzq2JLFxSsolBTMwTJK5kXRwZLWCwfoGPHj1sjOWVcOoLTMOFG9KgNLCVhQR5NmA5jE4o2ocOGFy RJRO6sqF1kBamjimoYG0I2nmCi/sgGcGuOV5bgbMJr0IGE1jMh7Dxz/xSUuRXkbmjyjbiW7/7h/j ADR6agzF5rgUW420IrrDpFKLTIWd5muMWQovLRTefW32z51BdpjpvJvDn//0h7DM8SXnfoslj9Ru oA17SLrQPccc2FknWzbMPMg6fW8ktWNDuzhkOhhWztAWj5zwYoioajvB7es0ly6SDODVvzxvJBfo cAEon7NgGJQ7ZmlWXZrTBrpjzHsxaEqK/Unr3io8BpktLzlm8G4POphr9FLPVcuyCoG06msBWGbA guE55uagx2I1z1yH5VM//Z1QdnXXlPGCMv2weR12yhOBFP3cjwcfW1mUgUT9hgXsKzf/6MmrZWaR yaVzK1rarUIpGnA1leHYMLMQMg7UHS7ZePtVZT5L2Sa9s/ksSLL5Zmkz/49ev0qOx50PlxnMPGOW yBmV8KRqmIuSxlTcAPCVx77bRmUEh5F8Pp8YWssSptOZVwULu8gGgQxbd+KUNwSF/2Ga5TdTzkQ0 15C1X//2xooYJoIhZCdslxE8wFQxTCmscEIfpBsIDq8si5ljbn9/H4TPnVu/EI52Dd7ccym5xy3F HRU8R9s5ixnK9gNXYTS6A0ejXVpQNZOZjUEEcxA8SRozKqFu9iiU4Pu/+sT3xBIwBoc8Nk1lDcEr afzE2DcJPxu3y9/aOgFzONzbc/dyBY77C1s7Zt2/rmi9ZXf3NiRyCoO1jjdAbjQ8xgCqeg+mk117 fw1f+9bT7upFl7DPMvkYriHiy/eHQ7iAZbq3GuWvUYDHGoBhJ7ymNR5mDfd5twdatQktX/fW22+D 1m9Bnndge2sb5mXXDmTL1Hj8Jn2vw7iKb3/iqZ+IEMMx7euPfEbjZ6DpZEovxVHZ3NpqO634Q4Ty vsAoVzM5QKpdgcLjSzs77s39wTplJnwPM4ylET8Lz2Exi0uBaZZCHF8AKfowOrpNwHCefvsHzyzh WMkYS8Z3MSxX3rl7Fza3Nr3FUDOBBR1o61oqAOSKTNvwGwB94EhSm2LVxACPfGVV4uq0prYLtIVV xi6t2UW2uvj+j3+zkpwTAwPmkfP5HHDzM5DBxnogMfNNzHyu1bqtiIldtSzfnctmtTfv9dqPi9bd EBhfz9mMk/tC0kxmdxwxJwFjcBgfRqOjAByucWSdzK42KbdExh8F2aV4fQOs3FgJ3V6XEtZerxdk L6aItEa1Ivs/DahTAcP26Bc+pflD+nw2D0Yf7Rll4TNFoACCgeCNHNGVPfazLcY1ys6FW7YTdkVM 2KK1XeoT7wrq1MC4IXs4J/AD+2w6o04q1U5yOg6+brL1tzkiLeF5e1pc9UG6/4VCOMAM6Omf/f7U /T3zV0MEh26ZxAmBODocuRUozXELy/3GfITn/SqWjgODv+MkdtLFQTgNS/cFzG+PPvJp7ds6WzR+ qMi73TDpteYwHU9c6bIKGM5dAe06/1kBnQuw4xov6dVNbYtLXL706zqDFFnEhn/3272CcQ0A/gfs Rqp9t77rvgAAAABJRU5ErkJggg==">
+                    </image>
+                </svg>
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgParticle)}`;
+
+                const imageWidth = this.radius * 2; 
+                const imageHeight = this.radius * 2; 
+                const imageX = this.x - imageWidth / 2;
+                const imageY = this.y- imageHeight / 2;
+
+                ctx.drawImage(img, imageX, imageY - camera.y, imageWidth, imageHeight);
+            };
+
+            //#endregion
+
+            animate(){
+                let foundPlatform = platformsArray.find(platform => areEqual(platform, this));
+                this.y += this.moveStrength;
+                
+                if (this.animFrame >= this.animDuration) {
+                    this.animFrame = 0;
+                };
+                if (this.animDuration > this.animFrame) {
+                    if (0 === this.animFrame) {
+                        this.y = foundPlatform.y + this.radius;
+                        this.x = foundPlatform.x + foundPlatform.width / 2;
+                    }; 
+                    if ( this.animDuration / 2 === this.animFrame) {
+                        this.y = foundPlatform.y + this.radius;
+                        this.x = foundPlatform.x + foundPlatform.width / 2;
+                    };
+                };
+                this.animFrame++;
+            };
+            handle(){
+                if (circularCollisionDetection(player, this)) {
+                    world.isRunning = false;
+                };
+            };
+
+        };
+
+        let particleIndex = 0;
+
+        function createParticles(platform){
+            particlesArray.push(new Particle());
+            particlesArray[particleIndex].updateStats(platform);
+            particleIndex++;
+        };
+
+        function handleParticles(){
+            for (let i = 0; i < particlesArray.length; i++) {
+                particlesArray[i].draw();
+                particlesArray[i].animate();
+                particlesArray[i].handle();
+            };
+        };
+
+        //#endregion
+
+        //#region Coin
+
+        let coinsArray = [];
+
+        class Coin {
+            constructor(){
+                this.radius = world.radius;
+                this.startAngle = 0; 
+                this.endAngle = Math.PI * 2;
+                this.type;
+                this.id;
+            };
+            updateStats(platform){
+                this.type = platform.type;
+                this.x = platform.x + platform.width/2;
+                this.y = platform.y - this.radius;
+                this.id = platform.id;
+            };
+            draw(){
+                const svgCoin = `
+                    <svg enable-background="new 0 0 212 212" version="1.1" viewBox="0 0 212 212" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+                        <style type="text/css">
+                            .st0{fill:#F4BC1C;}
+                            .st1{fill:#FFDA00;}
+                        </style>
+                        <circle class="st0" cx="106.5" cy="106.5" r="106.5"/>
+                        <circle class="st1" cx="106.5" cy="106.5" r="86"/>
+                        <image transform="matrix(.1866 0 0 .1866 48.92 52.734)" width="617" height="619" enable-background="new" overflow="visible" xlink:href="C0585C8E.png">
+                        </image>
+                    </svg>
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgCoin)}`;
+
+                const imageWidth = this.radius * 2; 
+                const imageHeight = this.radius * 2; 
+                const imageX = this.x - imageWidth / 2;
+                const imageY = this.y- imageHeight / 2;
+
+                ctx.drawImage(img, imageX, imageY - camera.y, imageWidth, imageHeight);
+            };
+            handle(){
+                if (circularCollisionDetection(player, this)) {
+                    world.coinCount++;
+                    deleteAsset(this);
+                };
+            };
+        };
+
+        let coinIndex = 0;
+
+        function createCoins(platform){
+            coinsArray.push(new Coin());
+            coinsArray[coinIndex].updateStats(platform);
+            coinIndex++;
+        };
+
+        function handleCoins(){
+            for (let i = 0; i < coinsArray.length; i++) {
+                coinsArray[i].draw();
+                coinsArray[i].handle();
+            };
+        };
+
+        //#endregion
+
+        //#region Booster
+
+        let boostersArray = [];
+
+        class Booster {
+            constructor(){
+                this.width = 25;
+                this.height = 25;
+                this.x;
+                this.y;
+                this.type;
+                this.id;
+            };
+            updateStats(platform){
+                this.type = platform.type;
+                this.x = platform.x;
+                this.y = platform.y - (this.height + 2);
+                this.id = platform.id;
+            };
+
+            //#region drawBooster
+
+            draw(){
+                const svgJetpack = `
+                    <svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+                        viewBox="0 0 292 302.9" style="enable-background:new 0 0 292 302.9;" xml:space="preserve">
+                    <style type="text/css">
+                        .st0{fill:#898989;}
+                        .st1{fill:#DBD5D5;}
+                        .st2{fill:#891010;}
+                        .st3{fill:#606060;}
+                        .st4{fill:#FF0000;}
+                    </style>
+                    <path class="st0" d="M212.5,283.9h-133c-22.1,0-40-17.9-40-40v-187c0-22.1,17.9-40,40-40h133c22.1,0,40,17.9,40,40v187
+                        C252.5,265.9,234.6,283.9,212.5,283.9z"/>
+                    <rect x="72.3" y="251" class="st1" width="147.4" height="33.7"/>
+                    <path class="st2" d="M292,302.9h-79V90.6c0-21.8,17.7-39.5,39.5-39.5l0,0c21.8,0,39.5,17.7,39.5,39.5V302.9z"/>
+                    <path class="st3" d="M184,103.9h-76v-9c0-21,17-38,38-38l0,0c21,0,38,17,38,38V103.9z"/>
+                    <path class="st1" d="M179.7,101.2h-67.5v-8c0-18.6,15.1-33.7,33.7-33.7l0,0c18.6,0,33.7,15.1,33.7,33.7L179.7,101.2L179.7,101.2z"/>
+                    <path class="st3" d="M119.8,16.9H73.9l0,0C73.9,7.5,81.5,0,90.8,0h12.1C112.2,0,119.8,7.5,119.8,16.9L119.8,16.9z"/>
+                    <path class="st3" d="M218.1,16.9h-45.8l0,0c0-9.3,7.5-16.9,16.9-16.9h12.1C210.5,0,218.1,7.5,218.1,16.9L218.1,16.9z"/>
+                    <rect x="213" y="273.9" class="st3" width="79" height="29"/>
+                    <path class="st2" d="M79,302.9H0V90.6c0-21.8,17.7-39.5,39.5-39.5l0,0C61.3,51.1,79,68.8,79,90.6V302.9z"/>
+                    <rect y="273.9" class="st3" width="79" height="29"/>
+                    <path class="st3" d="M94.3,242L94.3,242c-2.5,0-4.6-2-4.6-4.6V128.3c0-2.5,2-4.6,4.6-4.6l0,0c2.5,0,4.6,2,4.6,4.6v109.1
+                        C98.9,239.9,96.8,242,94.3,242z"/>
+                    <path class="st4" d="M148.9,90.5L148.9,90.5c-0.3-1.2,0.4-2.5,1.7-2.8l21.4-5.3c1.2-0.3,2.5,0.4,2.8,1.7l0,0
+                        c0.3,1.2-0.4,2.5-1.7,2.8l-21.4,5.3C150.4,92.4,149.2,91.7,148.9,90.5z"/>
+                    <path class="st3" d="M116.8,242L116.8,242c-2.5,0-4.6-2-4.6-4.6V128.3c0-2.5,2-4.6,4.6-4.6l0,0c2.5,0,4.6,2,4.6,4.6v109.1
+                        C121.4,239.9,119.3,242,116.8,242z"/>
+                    <path class="st3" d="M134.7,242L134.7,242c-2.5,0-4.6-2-4.6-4.6V128.3c0-2.5,2-4.6,4.6-4.6l0,0c2.5,0,4.6,2,4.6,4.6v109.1
+                        C139.3,239.9,137.3,242,134.7,242z"/>
+                    <path class="st3" d="M157.3,242L157.3,242c-2.5,0-4.6-2-4.6-4.6V128.3c0-2.5,2-4.6,4.6-4.6l0,0c2.5,0,4.6,2,4.6,4.6v109.1
+                        C161.8,239.9,159.8,242,157.3,242z"/>
+                    <path class="st3" d="M176.1,242L176.1,242c-2.5,0-4.6-2-4.6-4.6V128.3c0-2.5,2-4.6,4.6-4.6l0,0c2.5,0,4.6,2,4.6,4.6v109.1
+                        C180.7,239.9,178.7,242,176.1,242z"/>
+                    <path class="st3" d="M198.7,242L198.7,242c-2.5,0-4.6-2-4.6-4.6V128.3c0-2.5,2-4.6,4.6-4.6l0,0c2.5,0,4.6,2,4.6,4.6v109.1
+                        C203.2,239.9,201.2,242,198.7,242z"/>
+                    <circle cx="146" cy="91.2" r="2.8"/>
+                    </svg>
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgJetpack)}`;
+                
+                ctx.drawImage(img, this.x, this.y - camera.y, this.width, this.height);
+            };
+
+            //#endregion
+
+            handle(){
+                if (rectangularCollisionDetection(player, this)) {
+                    player.jumpStrength = 5;
+                    player.jumpDuration = 300;
+                    
                     player.isJumping = true;
                     player.isFlying = true;
-                    jumpFrame = 0;
-                    player.speedY = -jumpStrength;
-                    hasCollided = false;
-                }, 400);
+                    player.jumpFrame = 0;
+                    player.speedY = -player.jumpStrength;
+                    deleteAsset(this);
+                };
             };
-            if ( (camera.height + camera.y) < tramboline.y) {
-                deleteAsset(tramboline, index);
-            };
-        });
+        };
+
         
-        boosterContainer.forEach((booster, index) => {
-            if (rectangularCollisionDetection(player, booster)) {
-                jumpStrength = 5;
-                jumpDuration = 300;
+        let boosterIndex = 0;
+        
+        function createBoosters(platform){
+            
+            boostersArray.push(new Booster());
+            boostersArray[boosterIndex].updateStats(platform);
+            boosterIndex++;
+        };
+        
+        function handleBoosters(){
+            for (let i = 0; i < boostersArray.length; i++) {
+                boostersArray[i].draw();
+                boostersArray[i].handle();
+            };
+        };
+        
+        //#endregion
+
+        //#region Heart
+
+        let heartsArray = [];
+
+        class Heart {
+            constructor(){
+                this.width = 25;
+                this.height = 25;
+                this.x;
+                this.y;
+                this.type;
+                this.id;
+            };
+            updateStats(platform){
+                this.type = platform.type;
+                this.x = platform.x;
+                this.y = platform.y - (this.height + 2);
+                this.id = platform.id;
+            };
+
+            //#region drawHeart
+
+            draw(){
+                const svgHeart = `
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path fill="#FF0000" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C15.09 3.81 16.76 3 18.5 3 21.58 3 24 5.42 24 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgHeart)}`;
                 
-                player.isJumping = true;
-                player.isFlying = true;
-                jumpFrame = 0;
-                player.speedY = -jumpStrength;
-                deleteAsset(booster, index);
+                ctx.drawImage(img, this.x, this.y - camera.y, this.width, this.height);
             };
-        });
-        
-        coinContainer.forEach((coin, index) => {
-            if (circularCollisionDetection(player, coin)) {
-                coinCount ++;
-                deleteAsset(coin, index);
-            };
-        });
-        
-        particleContainer.forEach((particle, index) => {
-            if (circularCollisionDetection(player, particle)) {
-                isRunning = false;
-            };
-        });
 
-        enemyContainer.forEach((enemy, index) => {
-            if (rectangularCollisionDetection(player, enemy)) {
-                isRunning = false;
-            };
-            if (rectangularCollisionDetection(spear, enemy)) {
-                enemyCount ++;
-                deleteAsset(enemy, index);
-            };  
-        });
+            //#endregion
 
-        heartContainer.forEach((heart, index) => {
-            if (rectangularCollisionDetection(player, heart)) {
-                lifeLeft ++;
-                deleteAsset(heart, index);
+            handle(){
+                if (rectangularCollisionDetection(player, this)) {
+                    world.lifeLeft ++;
+                    deleteAsset(this);
+                };
             };
-        });
+        };
+
+        let heartIndex = 0;
+
+        function createHearts(platform){
+            heartsArray.push(new Heart());
+            heartsArray[heartIndex].updateStats(platform);
+            heartIndex++;
+        };
+
+        function handleHearts(){
+            for (let i = 0; i < heartsArray.length; i++) {
+                heartsArray[i].draw();
+                heartsArray[i].handle();
+            };
+        };
+
+        //#endregion
+
+        //#region Enemy
+
+        let enemiesArray = [];
+
+        class Enemy {
+            constructor(){
+                this.width;
+                this.height;
+                this.x;
+                this.y;
+                this.type;
+                this.id;
+            };
+            updateStats(platform){
+                this.width = player.width;
+                this.height = player.height;
+                this.type = platform.type;
+                this.x = platform.x;
+                this.y = platform.y - (this.height + 2);
+                this.id = platform.id;
+            };
+
+            //#region drawEnemy
+
+            draw(){
+                const svgEnemy = `
+                    <svg enable-background="new 0 0 217.5 611" version="1.1" viewBox="0 0 217.5 611" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">
+                        <style type="text/css">
+                            .st0{fill:#E9C6A0;}
+                            .st1{fill:#E0BA7E;}
+                            .st2{fill:#EFCCAB;}
+                            .st3{fill:#FFFFFF;}
+                            .st4{fill:#1A5682;}
+                            .st5{fill:#826E46;}
+                            .st6{fill:#EB463A;}
+                            .st7{fill:none;stroke:#91244C;stroke-miterlimit:10;}
+                            .st8{fill:#91244C;}
+                            .st9{fill:#FDC823;}
+                            .st10{fill:#F3A236;}
+                            .st11{fill:none;stroke:#FDC823;stroke-width:1.0325;stroke-miterlimit:10;}
+                            .st12{fill:none;stroke:#826E46;stroke-linecap:round;stroke-miterlimit:10;}
+                            .st13{fill:none;stroke:#FDC823;stroke-width:0.7898;stroke-miterlimit:10;}
+                            .st14{fill:#7D461D;}
+                            .st15{fill:#A86934;}
+                            .st16{fill:#D3B494;}
+                            .st17{fill:#D6B08B;}
+                            .st18{fill:#CFB08E;}
+                            .st19{fill:#CC8D8D;}
+                            .st20{fill:#683A3A;}
+                            .st21{fill:none;stroke:#A06767;stroke-width:0.9087;stroke-miterlimit:10;}
+                            .st22{fill:#894949;}
+                        </style>
+
+                            <rect class="st0" x="91.9" y="162.6" width="39.7" height="39.7"/>
+                            <path class="st1" d="m105.1 177.2h-13.2v-30.9h39.2v4.9c0 14.3-11.6 26-26 26z"/>
+                            <path class="st2" d="m111.7 167.3c-24.1 0-43.6-19.5-43.6-43.6v-20.9c0-18.2 14.7-32.9 32.9-32.9h21.3c18.2 0 32.9 14.7 32.9 32.9v20.9c0.1 24.1-19.4 43.6-43.5 43.6z"/>
+                            <path class="st3" d="m92.4 121.3c-4.7 0-8.5-3.8-8.5-8.5v-2.1c0-0.8 0.7-1.5 1.5-1.5h14c0.8 0 1.5 0.7 1.5 1.5v2.1c0 4.7-3.8 8.5-8.5 8.5z"/>
+                            <path class="st3" d="m130.6 121.3c4.7 0 8.5-3.8 8.5-8.5v-2.1c0-0.8-0.7-1.5-1.5-1.5h-14c-0.8 0-1.5 0.7-1.5 1.5v2.1c0 4.7 3.8 8.5 8.5 8.5z"/>
+                            <path class="st4" d="m98.5 112.7v-4.1c0-3.4-2.8-6.2-6.2-6.2s-6.2 2.8-6.2 6.2v4.1c0 3.4 2.8 6.2 6.2 6.2s6.2-2.8 6.2-6.2z"/>
+                            <path class="st4" d="m136.9 112.7v-4.1c0-3.4-2.8-6.2-6.2-6.2s-6.2 2.8-6.2 6.2v4.1c0 3.4 2.8 6.2 6.2 6.2s6.2-2.8 6.2-6.2z"/>
+                            <path class="st5" d="m123.5 112 15.8-2.5c2.4-0.4 4.1-2.8 3.7-5.3-0.4-2.6-2.6-4.3-5.1-3.9l-15.8 2.5c-2.4 0.4-4.1 2.8-3.7 5.3s2.7 4.3 5.1 3.9z"/>
+                            <path class="st5" d="m99.5 112-15.8-2.5c-2.4-0.4-4.1-2.8-3.7-5.3 0.4-2.6 2.6-4.3 5.1-3.9l15.8 2.5c2.4 0.4 4.1 2.8 3.7 5.3s-2.7 4.3-5.1 3.9z"/>
+                            
+                                <path class="st6" d="m155 24.5c-2.1 2.8-4.3 4.7-4.3 4.7 1.3-1.8 1.8-5 2-7.9-8-10.5-18.1-15.6-27.9-17.7-0.2 2.4-1.1 3.9-1.1 3.9 0-1.7-0.5-3.2-1.1-4.4-18.6-3.1-35.8 3.8-35.8 3.8 16.9 13.8 18.6 47.6 18.6 47.6l32.5 18.5c11.9-1 29.2-12.6 29.2-12.6-2.1-15.7-6.5-27.3-12.1-35.9z"/>
+                                <path class="st7" d="m111.9 6.7s9.2 24.2 3.8 37.4"/>
+                                <path class="st8" d="M138,73.1c11.9-1,29.2-12.6,29.2-12.6c-0.5-3.5-1.1-6.9-1.8-10l-10.6,8.3C141.7,43,111,42.1,111,42.1    c0.3-10.9-7.7-29.8-11.7-38.5C91.8,5,86.8,7,86.8,7c16.9,13.8,18.6,47.6,18.6,47.6L138,73.1z"/>
+                                <path class="st9" d="m100.1 50.5s5.3 3.9 5.5 7.5l14 0.1s0.7-4.4 5.3-6.5c0.1 0.1-12.8-6.6-24.8-1.1z"/>
+                                <path class="st7" d="m144.4 16.6s-0.3 28.2-5.7 33.7"/>
+                            
+                            <path class="st10" d="m160.4 97.4h-0.2v30.3c0 8.1-2.9 15.8-8.2 21.6l-2.5 2.8-8.8 9.6c-1.1 1.2-3 1.2-4.1 0l-10.8-11.9c-1.1-1.2-1.1-3.1 0-4.3l20.6-22.7c0.5-0.6 0.8-1.3 0.8-2.1v-17.4c0-2.2-2.1-3.7-4-2.8l-19.4 9c-1 0.5-1.7 1.6-1.7 2.8v15.6l-8.3 9.1c-1.1 1.2-3 1.2-4.1 0l-8.3-9.1h-0.4v-15.8c0-1.2-0.7-2.3-1.7-2.8l-19.3-9c-1.9-0.9-4 0.6-4 2.8v18c0 0.8 0.3 1.6 0.8 2.1l20.2 22.2c1.1 1.2 1.1 3.1 0 4.3l-10.8 11.9c-1.1 1.2-3 1.2-4.1 0l-10.8-11.9c-5.3-5.8-8.2-13.5-8.2-21.6v-32h0.1c0.3-10.4 4.2-19.9 10.5-26.7 6.5-7.2 15.5-11.6 25.4-11.6h25.5c19.8 0.1 35.8 17.7 35.8 39.6z"/>
+                            <path class="st11" d="m63 102.5s4.7-22.4 31.3-20.8l14.3-20.3s2.6-4.9 6.1 0l14.3 20.3c26.6-1.5 31.3 20.8 31.3 20.8"/>
+                            
+                                <path class="st11" d="m84.3 161.2 10.2-10.9s3.5-3.1 0-5.5l-18.1-19.3s-2.1-2.4-2.1-4.9v-17.5s0.2-7.1 6.9-4.2l16.4 7.5s6.5 3.1 5 7.8l0.2 9.5s-0.9 4.4 1.8 4.4l6.9 7.3"/>
+                                <path class="st11" d="m138.7 161.2-10.2-10.9s-3.5-3.1 0-5.5l18.1-19.3s2.1-2.4 2.1-4.9v-17.5s-0.2-7.1-6.9-4.2l-16.4 7.5s-6.5 3.1-5 7.8l-0.2 9.5s0.9 4.4-1.8 4.4l-6.9 7.3"/>
+                            
+                            <path class="st12" d="m100.1 147.9s19.7-4.9 23.2-2"/>
+                            <path class="st13" d="m107.7 102.2-7.5-7.9c-2.1-2.2-2.1-5.9 0-8.1l7.5-7.9c2.1-2.2 5.5-2.2 7.6 0l7.5 7.9c2.1 2.2 2.1 5.9 0 8.1l-7.5 7.9c-2.1 2.2-5.5 2.2-7.6 0z"/>
+
+
+                            <polygon class="st0" points="118.7 581 155.1 581 160 363.6 118.7 364.6"/>
+                            
+                                <polygon class="st14" points="144 538.5 138.7 545.7 118.5 541.5 118.5 582.7 154.8 590.3 160.2 538.4"/>
+                                <path class="st0" d="m188.3 604.9h-69.6v-22.4h40.1s25.9 4.5 29.5 8c4 4 0 14.4 0 14.4z"/>
+                                <path class="st15" d="m175 584.6c-3.4 3.5-7.1 9.7-7.6 20.2l2.3 0.1h2.3c0.6-11 5-16.3 8-18.6-1.7-0.6-3.4-1.2-5-1.7z"/>
+                                <rect class="st15" x="118.7" y="604.9" width="70" height="3.8"/>
+                            
+
+
+                            <polygon class="st0" points="104.6 581 68.2 581 63.3 363.6 104.6 364.6"/>
+                            
+                                <polygon class="st14" points="79.1 538.5 84.3 545.7 104.6 541.5 104.6 582.7 68.2 590.3 62.9 538.4"/>
+                                <path class="st0" d="m34.8 604.9h69.6v-22.4h-40.1s-25.9 4.5-29.5 8c-4 4 0 14.4 0 14.4z"/>
+                                <path class="st15" d="m48 584.6c3.4 3.5 7.1 9.7 7.6 20.2l-2.3 0.1h-2.3c-0.6-11-5-16.3-8-18.6 1.7-0.6 3.4-1.2 5-1.7z"/>
+                                <rect class="st15" x="34.4" y="604.9" width="70" height="3.8"/>
+                            
+
+
+                            <path class="st0" d="m183.9 396.8 26.9-0.8 2.2-177c-0.6-19-16.5-34-35.5-33.4l6.4 211.2z"/>
+                            
+                                <path class="st0" d="m189.5 427.2c-8.8-3.3-13.3-13.2-10-22l2-5.4c3.3-8.8 13.2-13.3 22-10s13.3 13.2 10 22l-2 5.4c-3.3 8.9-13.2 13.3-22 10z"/>
+                                
+                                    <path class="st16" d="m201.7 431.8c-2-1.8-2.2-4.8-0.4-6.8l7.6-8.5c1.8-2 4.8-2.2 6.8-0.4s2.2 4.8 0.4 6.8l-7.6 8.5c-1.8 2-4.9 2.2-6.8 0.4z"/>
+                                    <path class="st16" d="m214.1 423.8c-2.5 0.8-5.3-0.7-6-3.2l-3.4-10.9c-0.8-2.5 0.7-5.3 3.2-6 2.5-0.8 5.3 0.7 6 3.2l3.4 10.9c0.8 2.5-0.6 5.3-3.2 6z"/>
+                                
+                                <path class="st17" d="m181.9 431.2c-2.7-0.2-4.7-2.5-4.5-5.1l0.7-11.4c0.2-2.7 2.5-4.7 5.1-4.5 2.7 0.2 4.7 2.5 4.5 5.1l-0.7 11.4c-0.1 2.6-2.4 4.6-5.1 4.5z"/>
+                                <path class="st17" d="m189.3 435.7c-2.7-0.2-4.7-2.5-4.5-5.1l0.7-11.4c0.2-2.7 2.5-4.7 5.1-4.5 2.7 0.2 4.7 2.5 4.5 5.1l-0.7 11.4c-0.1 2.6-2.4 4.6-5.1 4.5z"/>
+                                <path class="st17" d="m195.4 438c-2.7-0.2-4.7-2.5-4.5-5.1l0.7-11.4c0.2-2.7 2.5-4.7 5.1-4.5 2.7 0.2 4.7 2.5 4.5 5.1l-0.6 11.3c-0.2 2.7-2.5 4.7-5.2 4.6z"/>
+                                <path class="st17" d="m203.5 438.5c-2.7-0.2-4.7-2.5-4.5-5.1l0.7-11.4c0.2-2.7 2.5-4.7 5.1-4.5 2.7 0.2 4.7 2.5 4.5 5.1l-0.7 11.4c-0.1 2.6-2.4 4.6-5.1 4.5z"/>
+                            
+
+
+                            <path class="st0" d="m41.6 185.6c-19-0.6-34.9 14.4-35.5 33.4l2.2 177 26.9 0.8 6.4-211.2z"/>
+                            
+                                <path class="st0" d="m7.6 417.2-2-5.4c-3.3-8.8 1.2-18.7 10-22s18.7 1.2 22 10l2 5.4c3.3 8.8-1.2 18.7-10 22s-18.7-1.1-22-10z"/>
+                                
+                                    <path class="st16" d="m10.6 431.4-7.6-8.5c-1.8-2-1.6-5 0.4-6.8s5-1.6 6.8 0.4l7.6 8.5c1.8 2 1.6 5-0.4 6.8-1.9 1.8-5 1.6-6.8-0.4z"/>
+                                    <path class="st16" d="m1.8 417.8 3.4-10.9c0.7-2.5 3.5-4 6-3.2 2.5 0.7 4 3.5 3.2 6l-3.4 10.9c-0.7 2.5-3.5 4-6 3.2-2.6-0.7-4-3.5-3.2-6z"/>
+                                
+                                <path class="st17" d="m32.1 426.7-0.7-11.4c-0.2-2.6 1.8-4.9 4.5-5.1 2.6-0.2 4.9 1.8 5.1 4.5l0.7 11.4c0.2 2.6-1.8 4.9-4.5 5.1-2.7 0.1-5-1.9-5.1-4.5z"/>
+                                <path class="st17" d="m24.7 431.2-0.7-11.4c-0.2-2.6 1.8-4.9 4.5-5.1 2.6-0.2 4.9 1.8 5.1 4.5l0.7 11.4c0.2 2.6-1.8 4.9-4.5 5.1-2.7 0.1-5-1.9-5.1-4.5z"/>
+                                <path class="st17" d="m18.5 433.4-0.6-11.3c-0.2-2.6 1.8-4.9 4.5-5.1 2.6-0.2 4.9 1.8 5.1 4.5l0.7 11.4c0.2 2.6-1.8 4.9-4.5 5.1-2.7 0.1-5-1.9-5.2-4.6z"/>
+                                <path class="st17" d="m10.5 434-0.7-11.4c-0.2-2.6 1.8-4.9 4.5-5.1 2.6-0.2 4.9 1.8 5.1 4.5l0.7 11.4c0.2 2.6-1.8 4.9-4.5 5.1-2.7 0.1-5-1.9-5.1-4.5z"/>
+                            
+
+
+                            <path class="st2" d="m194.4 221.1-27.6 105.7c-3.6 14-16.2 23.7-30.7 23.7h-48.8c-14.4 0-27-9.7-30.7-23.7l-27.6-105.7c-5.2-20.1 9.9-39.7 30.7-39.7h104c20.8 0 36 19.6 30.7 39.7z"/>
+                            <path class="st18" d="m181.4 239.4s-1.2 5.4-5.2 12.7c-1.1 1.8-2.2 3.8-3.7 5.6-1.4 2-3.1 3.9-5 5.7s-4.1 3.6-6.5 5.1c-2.5 1.4-5 2.8-7.8 3.6-2.7 1.1-5.6 1.2-8.4 1.6-2.8 0.2-5.6-0.3-8.3-0.4-2.6-0.6-5-1.4-7.4-2-2.3-0.8-4.2-2-6.1-2.9-0.9-0.5-1.8-0.9-2.7-1.3-0.8-0.5-1.5-1.1-2.2-1.5-1.4-1-2.5-1.8-3.5-2.5-1.9-1.4-3-2.3-3-2.3s1.2 0.6 3.4 1.6c1.1 0.5 2.4 1.1 3.9 1.9 1.4 0.8 3.2 1.5 5.1 2.1s3.9 1.5 6.1 2.1c2.2 0.4 4.5 0.9 7 1.4 2.4 0 5 0.2 7.5 0 2.5-0.5 5.1-0.5 7.5-1.6 2.5-0.6 4.8-1.9 7-3.1 2.2-1.3 4.2-2.8 6.1-4.4 1.8-1.6 3.6-3.2 5.1-5 1.6-1.6 2.8-3.4 4.1-5 2.3-3.3 4.3-6.1 5.4-8.2 0.9-2 1.6-3.2 1.6-3.2z"/>
+                            <path class="st18" d="m41.7 239.4s0.6 1.2 1.8 3.3c1.1 2.1 3.1 4.9 5.4 8.2 1.3 1.5 2.5 3.3 4.1 5 1.5 1.8 3.3 3.3 5.1 5 1.9 1.6 4 3 6.1 4.4 2.2 1.2 4.5 2.5 7 3.1 2.4 1.1 5 1.1 7.5 1.6 2.5 0.2 5-0.1 7.5 0 2.4-0.5 4.8-0.9 7-1.4 2.2-0.6 4.2-1.5 6.1-2.1s3.6-1.3 5.1-2.1c1.5-0.7 2.8-1.4 3.9-1.9 2.2-1 3.4-1.6 3.4-1.6s-1.1 0.8-3 2.3c-1 0.7-2.2 1.6-3.5 2.5-0.7 0.5-1.4 1-2.2 1.5-0.9 0.4-1.7 0.9-2.7 1.3-1.9 0.9-3.9 2-6.1 2.9-2.3 0.7-4.8 1.4-7.4 2-2.7 0.1-5.4 0.6-8.3 0.4-2.8-0.4-5.7-0.5-8.4-1.6-2.8-0.8-5.3-2.2-7.8-3.6-2.4-1.5-4.5-3.3-6.5-5.1-1.9-1.9-3.6-3.7-5-5.7-1.5-1.9-2.6-3.9-3.7-5.6-4.3-7.4-5.4-12.8-5.4-12.8z"/>
+                            
+                                <path class="st18" d="m98.9 286.1s0.7-0.1 1.9-0.2c0.6 0.1 1.4 0.1 2.3 0.4 0.9 0.2 1.8 0.6 2.7 1.3 1.8 1.3 3.5 3.7 3.9 6.7l0.1 0.6v1.6c0 0.5-0.3 1.6-0.5 2.4-0.6 1.6-1.5 2.9-2.6 4.1-1.2 1.1-2.6 2-4.2 2.4-1.4 0.6-3.3 0.5-4.4 0.4-2.5-0.1-4.8-0.4-6.8-0.6-4-0.5-6.6-1.2-6.6-1.2s2.6-0.6 6.6-1.2c2-0.3 4.3-0.5 6.8-0.6 1.4-0.1 2.1-0.2 3.1-0.6 1-0.3 1.8-0.9 2.6-1.6 0.7-0.7 1.4-1.6 1.7-2.5 0.1-0.5 0.4-0.6 0.4-1.4l0.1-0.9v-0.2 0.1-0.5c0-2-0.8-3.9-1.9-5.2-1.1-1.4-2.5-2.2-3.5-2.7-1-0.3-1.7-0.6-1.7-0.6z"/>
+                                <path class="st18" d="m98.9 304s0.7-0.1 1.9-0.2c0.6 0.1 1.4 0.1 2.3 0.4 0.9 0.2 1.8 0.6 2.7 1.3 1.8 1.3 3.5 3.7 3.9 6.7l0.1 0.6v1.6c0 0.5-0.3 1.6-0.5 2.3-0.6 1.6-1.5 2.9-2.6 4.1-1.2 1.1-2.6 2-4.1 2.4-1.4 0.6-3.3 0.5-4.4 0.4-2.5-0.1-4.8-0.4-6.8-0.6-4-0.5-6.6-1.2-6.6-1.2s2.6-0.6 6.6-1.2c2-0.3 4.3-0.5 6.8-0.6 1.4-0.1 2.1-0.2 3.1-0.6 1-0.3 1.8-0.9 2.6-1.6 0.7-0.7 1.4-1.6 1.7-2.5 0.1-0.5 0.4-0.6 0.4-1.4l0.1-1v-0.2 0.1-0.5c0-2-0.8-3.9-1.9-5.2-1.1-1.4-2.5-2.2-3.5-2.7-1.1-0.1-1.8-0.4-1.8-0.4z"/>
+                            
+                            
+                                <path class="st18" d="m124.1 286.1-1.8 0.6c-1 0.5-2.4 1.2-3.5 2.7-1.1 1.4-1.9 3.2-1.8 5.2v0.5-0.1 0.2l0.1 1c0 0.8 0.4 0.9 0.4 1.4 0.3 0.9 1 1.8 1.7 2.5 0.8 0.7 1.6 1.3 2.6 1.6 1 0.4 1.8 0.5 3.1 0.6 2.5 0.1 4.8 0.4 6.8 0.6 4 0.5 6.6 1.2 6.6 1.2s-2.6 0.6-6.6 1.2c-2 0.3-4.3 0.5-6.8 0.6-1.1 0-3 0.1-4.4-0.4-1.5-0.4-2.9-1.4-4.2-2.4-1.1-1.2-2-2.5-2.6-4.1-0.2-0.8-0.5-1.8-0.5-2.4v-1.6l0.1-0.6c0.3-3 2-5.4 3.9-6.7 0.9-0.7 1.9-1.1 2.7-1.3 0.9-0.3 1.7-0.3 2.3-0.4 1.2 0 1.9 0.1 1.9 0.1z"/>
+                                <path class="st18" d="m124.1 304-1.8 0.6c-1 0.5-2.4 1.2-3.5 2.7-1.1 1.4-1.9 3.2-1.8 5.2v0.5-0.1 0.2l0.1 0.9c0 0.8 0.4 0.9 0.4 1.4 0.3 0.9 1 1.8 1.7 2.5 0.8 0.7 1.6 1.3 2.6 1.6 1 0.4 1.8 0.5 3.1 0.6 2.5 0.1 4.8 0.4 6.8 0.6 4 0.5 6.6 1.2 6.6 1.2s-2.6 0.6-6.6 1.2c-2 0.3-4.3 0.5-6.8 0.6-1.1 0-3 0.1-4.4-0.4-1.5-0.4-2.9-1.3-4.2-2.4-1.1-1.2-2-2.5-2.6-4.1-0.2-0.8-0.5-1.8-0.5-2.4v-1.6l0.1-0.6c0.3-3 2-5.4 3.9-6.7 0.9-0.7 1.9-1.1 2.7-1.3 0.9-0.3 1.7-0.3 2.3-0.4 1.2 0.1 1.9 0.2 1.9 0.2z"/>
+                            
+                            <circle class="st19" cx="72.5" cy="256.2" r="5.2"/>
+                            <circle class="st19" cx="148.7" cy="256.2" r="5.2"/>
+                            <path class="st20" d="m58.8 456.7c-7.2-1.2-10.7-15.8-9.5-23l13-76.1 26.1 4.5-13 76.1c-1.3 7.2-9.4 19.8-16.6 18.5z"/>
+                            <path class="st20" d="m97.2 456.4c-7.3 0-13.2-13.8-13.2-21.1v-77.2h26.5v77.2c-0.1 7.3-6 21.1-13.3 21.1z"/>
+                            <path class="st20" d="m129.3 456.3c-7.3 0.5-14.2-12.8-14.7-20.1l-5.4-77 26.4-1.8 5.4 77c0.5 7.2-4.5 21.4-11.7 21.9z"/>
+                            <path class="st20" d="m164.3 456.7c7.2-1.2 10.7-15.8 9.5-23l-13-76.1-26.1 4.5 13 76.1c1.2 7.2 9.4 19.8 16.6 18.5z"/>
+                            <path class="st21" d="m164.3 454.2c6-1 8.5-15.4 7.2-22.6l-13-76.1-21.5 3.7 13 76.1c1.2 7.2 8.3 19.9 14.3 18.9z"/>
+                            <path class="st21" d="m59.4 454.2c-6-1-8.5-15.4-7.2-22.6l13-76.1 21.5 3.7-13 76.1c-1.2 7.2-8.3 19.9-14.3 18.9z"/>
+                            <path class="st21" d="m128.5 452.5c-6 0.3-11.7-13.1-12.1-20.4l-4.4-77.1 21.8-1.2 4.4 77.1c0.5 7.3-3.6 21.3-9.7 21.6z"/>
+                            <path class="st21" d="m97.2 452.8c-6 0-10.9-13.8-10.9-21.1v-77.2h21.9v77.2c-0.1 7.4-5 21.1-11 21.1z"/>
+                            <path class="st22" d="m156.2 362.3h-88.9c-4.9 0-8.9-4-8.9-8.9v-12.1c0-4.9 4-8.9 8.9-8.9h88.9c4.9 0 8.9 4 8.9 8.9v12.1c0 4.9-4 8.9-8.9 8.9z"/>
+                            <path class="st21" d="m153.7 360.3h-84.5c-4.4 0-8-3.6-8-8v-9.7c0-4.4 3.6-8 8-8h84.5c4.4 0 8 3.6 8 8v9.7c0.1 4.4-3.5 8-8 8z"/>
+
+                    </svg>
+                `;
+                    
+                const img = new Image();
+                img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgEnemy)}`;
+                
+                ctx.drawImage(img, this.x, this.y - camera.y, this.width, this.height);
+            };
+
+            //#endregion
+
+            handle(){
+                if (rectangularCollisionDetection(player, this)) {
+                    world.isRunning = false;
+                };
+                if (rectangularCollisionDetection(spear, this)) {
+                    world.enemyCount ++;
+                    deleteAsset(this);
+                };  
+            };
+
+        };
+
+        let enemyIndex = 0;
+
+        function createEnemies(platform){
+            enemiesArray.push(new Enemy());
+            enemiesArray[enemyIndex].updateStats(platform);
+            enemyIndex++;
+        };
+
+        function handleEnemies(){
+            for (let i = 0; i < enemiesArray.length; i++) {
+                enemiesArray[i].draw();
+                enemiesArray[i].handle();
+            };
+        };
+
+        //#endregion
+
+        //#region CollisionDetectors
+
+        function rectangularCollisionDetection(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+            rect1.x + rect1.width > rect2.x &&
+            rect1.y < rect2.y + rect2.height &&
+            rect1.y + rect1.height > rect2.y;
+        };
+
+        function platformCollisionDetection(rect1, rect2) {
+            return rect1.y + rect1.height / 2 >= rect2.y &&
+            rect1.y + rect1.height / 2 <= rect2.y + rect2.height &&
+            rect1.x <= rect2.x + rect2.width && rect1.x + rect1.width >= rect2.x;
+        };
+
+        function circularCollisionDetection(rect, circle) {
+            let closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+            let closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+            
+            let distX = circle.x - closestX;
+            let distY = circle.y - closestY;
+            let distance = Math.sqrt(distX * distX + distY * distY);
+            
+            return distance <= circle.radius;
+        };
+
+        //#endregion
+
+        //#region DeletingSystem
         
-        if ( camera.y + canvas.height < player.y) {
-            isRunning = false;
+        function deletePlatform(platform) {
+            
+            if (platform.type == 'enemy') {
+                const foundIndex =  enemiesArray.findIndex(enemy => areEqual(enemy, platform));
+                if (foundIndex >= 0) {
+                    enemiesArray.splice(foundIndex, 1);
+                };
+            } else if (platform.type == 'coin') {
+                const foundIndex = coinsArray.findIndex(coin => areEqual(coin, platform));
+                if (foundIndex >= 0) {
+                    coinsArray.splice(foundIndex, 1);
+                };
+            } else if (platform.type == 'tramboline') {
+                const foundIndex = trambolinesArray.findIndex(tramboline => areEqual(tramboline, platform));
+                if (foundIndex >= 0) {
+                    trambolinesArray.splice(foundIndex, 1);
+                };
+            } else if (platform.type == 'booster') {
+                const foundIndex = boostersArray.findIndex(booster => areEqual(booster, platform));
+                if (foundIndex >= 0) {
+                    boostersArray.splice(foundIndex, 1);
+                };
+            } else if (platform.type == 'heart') {
+                const foundIndex = heartsArray.findIndex(heart => areEqual(heart, platform));
+                if (foundIndex >= 0) {
+                    heartsArray.splice(foundIndex, 1);
+                };
+            } else if (platform.type == 'particle') {
+                const foundIndex = particlesArray.findIndex(particle => areEqual(particle, platform));
+                if (foundIndex >= 0) {
+                    particlesArray.splice(foundIndex, 1);
+                };
+            };
+            const foundIndex = platformsArray.findIndex(p1 => areEqual(platform, p1));
+            platformsArray.splice(foundIndex, 1);
         };
         
-        if (isRunning) {
-            requestAnimationFrame(update);
-        } else {
-            cancelAnimationFrame(update);
+        function deleteAsset(asset) {
+            if (asset.type == "coin") {
+                const foundIndex = coinsArray.findIndex(coin => areEqual(coin, asset));
+                coinsArray.splice(foundIndex, 1);
+                
+            } else if (asset.type == "tramboline") {
+                const foundIndex = trambolinesArray.findIndex(tramboline => areEqual(tramboline, asset));
+                trambolinesArray.splice(foundIndex, 1);
+                
+            } else if (asset.type == "enemy") {
+                const foundIndex = enemiesArray.findIndex(enemy => areEqual(enemy, asset));
+                enemiesArray.splice(foundIndex, 1);
+                
+            } else if (asset.type == "booster") {
+                const foundIndex = boostersArray.findIndex(booster => areEqual(booster, asset));
+                boostersArray.splice(foundIndex, 1);
+                
+            } else if (asset.type == "heart") {
+                const foundIndex = heartsArray.findIndex(heart => areEqual(heart, asset));
+                heartsArray.splice(foundIndex, 1);
+                
+            } else if (asset.type == "particle") {
+                const foundIndex = particlesArray.findIndex(particle => areEqual(particle, asset));
+                particlesArray.splice(foundIndex, 1);
+            };
+        };
+        
+        function deleteBackground(background) {
+            const foundIndex = backgroundsArray.findIndex(bg2 => areEqual(bg2, background));
+            backgroundsArray.splice(foundIndex, 1);
+        };
 
-            if ( lifeLeft > 1 ) { 
-                respawn();
-                setTimeout(() => {
-                    isRunning = true;
-                    update();
-                }, 250);
+        //#endregion
 
+        //#region AddtionalFunctions
+
+        function areEqual(obj1, obj2) {
+            if (obj1.id === obj2.id) {
+                return true;
+            }
+            return false;
+        };
+
+        function handleHeartIcons() {
+            const cloneIcons = document.querySelectorAll('#clone');
+            if (world.lifeLeft > 0) {
+                cloneIcons.forEach((cloneIcon, index) => {
+                    if (index > 0) {
+                        cloneIcon.parentNode.removeChild(cloneIcon);
+                    }
+                });
+                for (let index = 0; index < world.lifeLeft; index++) {
+                    const newIcon = heartIcon.cloneNode(true)
+                    newIcon.classList.remove('none');
+                    newIcon.id = 'clone';
+                    newIcon.setAttribute('transform', `translate(${550 * index - 1350})`);
+                    newIcon.setAttribute('fill', `red`);
+                    svg.appendChild(newIcon);
+                };
+            }; 
+        };
+        
+        function updateMinValue(newValue) {
+            minValue = Math.min(minValue, newValue);
+        };
+
+        function findLowestPlatform() {
+
+            const keyToExclude = ["isMoving", "particle", "breakable"];
+            let filteredContainer = platformsArray
+                .filter(obj => !keyToExclude.some(key => obj.hasOwnProperty(key)))
+
+            lowestPlatform = filteredContainer.reduce((lowestPlatform, currentPlatform) => {
+                return currentPlatform.y > lowestPlatform.y ? currentPlatform : lowestPlatform; 
+            });
+        };
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        };
+
+        //#endregion
+
+        //#region TouchScreenFunctions
+     
+        interface.addEventListener('touchstart', function (event) {
+
+            const tapX = event.touches[0].clientX - canvas.getBoundingClientRect().left;
+
+            player.isDragging = true;
+            world.dragOffsetX = player.x - tapX;
+        }, 
+        {passive: true});
+
+        interface.addEventListener('touchmove', function (event) {
+
+            if (player.isDragging && !player.freeze) {
+                const tapX = event.touches[0].clientX - canvas.getBoundingClientRect().left;
+
+                player.x = tapX + world.dragOffsetX;
+                spear.x = player.x - player.spearOffset;
+
+                if (player.x < 0) {
+                    player.x += canvas.width;
+                    spear.x += canvas.width;
+                } else if (player.x > canvas.width) {
+                    player.x -= canvas.width;
+                    spear.x -= canvas.width;
+                };
+            };
+        },
+        {passive: true});
+
+        interface.addEventListener('touchend', function () {
+            player.isDragging = false;
+        },
+         {passive: true});
+
+        //#endregion
+        
+        //#region GameStart
+
+        startButton.addEventListener('click', () => {
+    
+            startButton.classList.add('none');
+            interface.classList.remove('none');
+            scoreUI.classList.remove('none');
+
+            world.isRunning = true;
+            minValue = Infinity;
+            camera.y = 0;
+        
+            statIndex = 0;
+            particleIndex = 0;
+            trambolineIndex = 0;
+            coinIndex = 0;
+            boosterIndex = 0;
+            enemyIndex = 0;
+            heartIndex = 0;
+            backgroundIndex = 2;
+            indexParam = 0;
+
+            player.x = (canvas.width / 2) - 7.5;
+            player.y = (canvas.height / 2) + 70;
+            spear.x = player.x - player.spearOffset;
+
+            camera.y = 0;
+            
+            world.score = 0;
+            world.coinCount = 0;
+            world.enemyCount = 0;
+
+            scoreUI.textContent = `${world.score}`;
+
+            minValue = Infinity;
+
+            world.lifeLeft = 3;
+
+            while (platformsArray.length < 25) {
+                platformSpawner();
+            }
+
+            platformsArray.forEach((platform) => {
+                if (platform.type == 'coin') {
+                    createCoins(platform);
+                };
+                if (platform.type == 'enemy') {
+                    createEnemies(platform);
+                };
+                if (platform.type == 'heart') {
+                    createHearts(platform);
+                };
+                if (platform.type == 'tramboline') {
+                    createTrambolines(platform);
+                };
+                if (platform.type == 'booster') {
+                    createBoosters(platform);
+                };
+                if (platform.type == 'particle') {
+                    createParticles(platform);
+                };
+            });
+            
+            clearCanvas();
+            createBackground();
+            animate();
+        });
+        
+        //#endregion
+        
+        //#region Respawn&GameOver
+        
+        function respawn() {
+            
+            player.freeze = false;
+            player.isDragging = false;
+            player.trambolineUsed = false;
+            player.isFlying = false;
+            player.jumpStrength = 3;
+            player.jumpDuration = 20;
+            player.jumpFrame = 0;
+            
+            findLowestPlatform();
+            
+            if (lowestPlatform.type == 'enemy') {
+                
+                const foundIndex = enemiesArray.findIndex(enemy => areEqual(enemy, lowestPlatform));
+                enemiesArray.splice(foundIndex, 1);
+                enemiesArray.splice(foundIndex, 2);
+                
+            } else if (lowestPlatform.type == 'coin') {
+                
+                const foundIndex = coinsArray.findIndex(coin => areEqual(coin, lowestPlatform));
+                coinsArray.splice(foundIndex, 1);
+                
+            } else if (lowestPlatform.type == 'booster') {
+                
+                const foundIndex = boostersArray.findIndex(booster => areEqual(booster, lowestPlatform));
+                boostersArray.splice(foundIndex, 1);
+                
+            } else if (lowestPlatform.type == 'heart') {
+                
+                const foundIndex = heartsArray.findIndex(heart => areEqual(heart, lowestPlatform));
+                heartsArray.splice(foundIndex, 1);
+            };
+            
+            setTimeout(() => {
+                player.y = lowestPlatform.y - 50;
+                player.x = lowestPlatform.x + player.width;
+                spear.x = player.x - player.spearOffset;
+            }, 250);
+            
+            world.lifeLeft --;
+        };
+        
+        function gameOver() {
+            startButton.classList.remove('none');
+            startButton.textContent = 'Play Again';
+            
+            platformsArray = [];
+            trambolinesArray = [];
+            coinsArray= [];
+            enemiesArray = [];
+            heartsArray = [];
+            boostersArray= [];
+            particlesArray = [];
+            backgroundsArray = [];
+        };
+        
+        //#endregion
+        
+        //#region Animate
+        
+        function animate() {
+            
+            updateWorld();
+            handleBackground();
+            handleCamera();
+            handlePlayer();
+            handlePlatforms();
+            handleTrambolines();
+            handleParticles();
+            handleCoins();
+            handleBoosters();
+            handleHearts(); 
+            handleHeartIcons();
+            handleEnemies();
+            updateMinValue(player.y);
+            
+            scoreUI.textContent = `${world.score}`;
+            
+            if ( camera.y + canvas.height < player.y) {
+                world.isRunning = false;
+            };
+
+            if (world.isRunning) {
+                requestAnimationFrame(animate);
             } else {
-                gameOver();
+                cancelAnimationFrame(animate);
+                
+                if ( world.lifeLeft > 1 ) { 
+                    respawn();
+                    setTimeout(() => {
+                        world.isRunning = true;
+                        animate();
+                    }, 250);
+                    
+                } else {
+                    gameOver();
+                };
             };
         };
-    };
-
+        //#endregion
+        
+    });
 </script>
