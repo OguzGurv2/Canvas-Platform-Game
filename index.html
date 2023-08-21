@@ -357,7 +357,7 @@
         class Player {
             constructor(){
                 this.x = (canvas.width / 2) - 7.5;
-                this.y = (canvas.height / 2) + 70; 
+                this.y = 0; 
                 this.width = 17.8;
                 this.height = 50;
                 this.speedY = 0;
@@ -373,9 +373,8 @@
             };
 
             //#region drawPlayer
+ 
             draw(){
-
-                // ctx.fillRect(this.x, this.y - camera.y, this.width, this.height);
 
                 const svgPlayer = `
                     <svg enable-background="new 0 0 375.7 732" version="1.1" viewBox="0 0 375.7 732" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -555,14 +554,7 @@
                 this.width = 5;
                 this.height = 30;
             };
-            // draw(){
-            //     ctx.fillRect(spear.x, spear.y - camera.y, spear.width, spear.height);
-            // };
         };
-
-        // function handleSpear() {
-        //     spear.draw();
-        // };
 
         const spear = new Spear();
 
@@ -574,7 +566,7 @@
 
         let statIndex = 0;
 
-        const firstPlatformY = canvas.height/2 + 90;
+        const firstPlatformY = 20;
         const firstPlatformX = canvas.width/2 - 25/2;
 
         class Platform {
@@ -589,15 +581,20 @@
                 this.animFrame = 0;
                 this.type = 'none';
 
+                //#region randomizer
+
                 this.id = statIndex;
                 statIndex++;
     
                 let yMin = firstPlatformY - 135;
                 let yMax = firstPlatformY;
-                let yParam = Math.random() * (yMax - yMin) + yMin;
+                let yParam = Math.floor(Math.random() * (yMax - yMin) + yMin);
     
                 if (yRate < 0 ) {
-                    yParam = (yRate * Math.random()) * (yMax - yMin) + yMin;
+                    
+                    yParam = yRate * yParam;
+                    // console.log(yRate);
+                    console.log(yParam);
                 };
     
                 let xParam = Math.random() * (canvas.width - this.width);
@@ -621,28 +618,46 @@
                     } else if (firstParam < 20) {
                         this.type = 'heart';
     
-                    } else if (firstParam < 120) {
+                    } else if (firstParam < 30) {
                         this.type = 'particle';
                     
-                    } else if (firstParam < 270) {
+                    } else if (firstParam < 40) {
                         this.type = 'breakable'; 
                     
-                    } else if (firstParam < 420) {
+                    } else if (firstParam < 50) {
                         this.type = 'moving'; 
                     
-                    }
-                        else if (firstParam < 620) {
+                    } else if (firstParam < 60) {
                         this.type = 'coin';
                     
-                    } else if (firstParam < 920) {
+                    } else if (firstParam < 70) {
                         this.type = 'enemy';
                     } else {
                         this.type = 'none';
                     };
                     this.x = xParam;
                     this.y = yParam;
+
+                    if (this.type == 'coin') {
+                        createCoins(this);
+                    };
+                    if (this.type == 'enemy') {
+                        createEnemies(this);
+                    };
+                    if (this.type == 'heart') {
+                        createHearts(this);
+                    };
+                    if (this.type == 'tramboline') {
+                        createTrambolines(this);
+                    };
+                    if (this.type == 'booster') {
+                        createBoosters(this);
+                    };
+                    if (this.type == 'particle') {
+                        createParticles(this);
+                    };    
                 };
-            
+                //#endregion
             };
 
             //#region drawPlatforms
@@ -769,9 +784,10 @@
         };
 
         let spawnFrequency;
-        let yRate = 0;
+        let yRate = -1;
 
         function platformSpawner() {
+            yRate++;
             const spawnRate = Math.random();
             
             if (spawnRate < 0.5) {
@@ -782,10 +798,7 @@
 
             for (let i = 0; i < spawnFrequency; i++) {
                 platformsArray.push(new Platform());
-                console.log(platformsArray);
             };
-            
-            yRate--;
         };
 
         function handlePlatforms() {
@@ -803,14 +816,9 @@
         let trambolinesArray = [];
 
         class Tramboline {
-            constructor(){
-                this.id;
+            constructor(platform){
                 this.width = 50;
                 this.height = 7.5;
-                this.x;
-                this.y;
-            };
-            updateStats(platform){
                 this.x = platform.x - 50;
                 this.y = platform.y;
                 this.id = platform.id;
@@ -819,8 +827,6 @@
             //#region drawTramboline
 
             draw(){
-
-                // ctx.fillRect(this.x, this.y - camera.y, this.width, this.height);
 
                 const svgTramboline = `
                     <svg enable-background="new 0 0 600 600" version="1.1" viewBox="0 0 600 600" xml:space="preserve" xmlns="http://www.w3.org/2000/svg">
@@ -895,8 +901,7 @@
         let trambolineIndex = 0;
         
         function createTrambolines(platform) {
-            trambolinesArray.push(new Tramboline());
-            trambolinesArray[trambolineIndex].updateStats(platform);
+            trambolinesArray.push(new Tramboline(platform));
             trambolineIndex++;
         };
 
@@ -914,23 +919,17 @@
         let particlesArray = [];
 
         class Particle {
-            constructor(){
-                this.x;
-                this.y;
-                this.type;
+            constructor(platform){
+                this.id = platform.id;
+                this.x = platform.x + platform.width/2;
+                this.y = platform.y + this.radius;
+                this.type = platform.type;
                 this.animFrame = 0;
                 this.animDuration = 500;
                 this.moveStrength = world.gravity * 5;
                 this.radius = world.radius/2;
                 this.startAngle = 0; 
                 this.endAngle = Math.PI * 2;
-                this.id;
-            };
-            updateStats(platform){
-                this.id = platform.id;
-                this.x = platform.x + platform.width/2;
-                this.y = platform.y + this.radius;
-                this.type = platform.type;
             };
 
             //#region drawParticle
@@ -986,8 +985,7 @@
         let particleIndex = 0;
 
         function createParticles(platform){
-            particlesArray.push(new Particle());
-            particlesArray[particleIndex].updateStats(platform);
+            particlesArray.push(new Particle(platform));
             particleIndex++;
         };
 
@@ -1006,14 +1004,10 @@
         let coinsArray = [];
 
         class Coin {
-            constructor(){
+            constructor(platform){
                 this.radius = world.radius;
                 this.startAngle = 0; 
                 this.endAngle = Math.PI * 2;
-                this.type;
-                this.id;
-            };
-            updateStats(platform){
                 this.type = platform.type;
                 this.x = platform.x + platform.width/2;
                 this.y = platform.y - this.radius;
@@ -1054,8 +1048,7 @@
         let coinIndex = 0;
 
         function createCoins(platform){
-            coinsArray.push(new Coin());
-            coinsArray[coinIndex].updateStats(platform);
+            coinsArray.push(new Coin(platform));
             coinIndex++;
         };
 
@@ -1073,15 +1066,9 @@
         let boostersArray = [];
 
         class Booster {
-            constructor(){
+            constructor(platform){
                 this.width = 25;
                 this.height = 25;
-                this.x;
-                this.y;
-                this.type;
-                this.id;
-            };
-            updateStats(platform){
                 this.type = platform.type;
                 this.x = platform.x;
                 this.y = platform.y - (this.height + 2);
@@ -1156,9 +1143,7 @@
         let boosterIndex = 0;
         
         function createBoosters(platform){
-            
-            boostersArray.push(new Booster());
-            boostersArray[boosterIndex].updateStats(platform);
+            boostersArray.push(new Booster(platform));
             boosterIndex++;
         };
         
@@ -1176,15 +1161,9 @@
         let heartsArray = [];
 
         class Heart {
-            constructor(){
+            constructor(platform){
                 this.width = 25;
                 this.height = 25;
-                this.x;
-                this.y;
-                this.type;
-                this.id;
-            };
-            updateStats(platform){
                 this.type = platform.type;
                 this.x = platform.x;
                 this.y = platform.y - (this.height + 2);
@@ -1219,8 +1198,7 @@
         let heartIndex = 0;
 
         function createHearts(platform){
-            heartsArray.push(new Heart());
-            heartsArray[heartIndex].updateStats(platform);
+            heartsArray.push(new Heart(platform));
             heartIndex++;
         };
 
@@ -1238,15 +1216,8 @@
         let enemiesArray = [];
 
         class Enemy {
-            constructor(){
-                this.width;
-                this.height;
-                this.x;
-                this.y;
-                this.type;
-                this.id;
-            };
-            updateStats(platform){
+            constructor(platform){
+                
                 this.width = player.width;
                 this.height = player.height;
                 this.type = platform.type;
@@ -1408,8 +1379,7 @@
         let enemyIndex = 0;
 
         function createEnemies(platform){
-            enemiesArray.push(new Enemy());
-            enemiesArray[enemyIndex].updateStats(platform);
+            enemiesArray.push(new Enemy(platform));
             enemyIndex++;
         };
 
@@ -1493,26 +1463,32 @@
             if (asset.type == "coin") {
                 const foundIndex = coinsArray.findIndex(coin => areEqual(coin, asset));
                 coinsArray.splice(foundIndex, 1);
+                coinIndex--;
                 
             } else if (asset.type == "tramboline") {
                 const foundIndex = trambolinesArray.findIndex(tramboline => areEqual(tramboline, asset));
                 trambolinesArray.splice(foundIndex, 1);
+                trambolineIndex--;
                 
             } else if (asset.type == "enemy") {
                 const foundIndex = enemiesArray.findIndex(enemy => areEqual(enemy, asset));
                 enemiesArray.splice(foundIndex, 1);
+                enemyIndex--;
                 
             } else if (asset.type == "booster") {
                 const foundIndex = boostersArray.findIndex(booster => areEqual(booster, asset));
                 boostersArray.splice(foundIndex, 1);
+                boosterIndex--;
                 
             } else if (asset.type == "heart") {
                 const foundIndex = heartsArray.findIndex(heart => areEqual(heart, asset));
                 heartsArray.splice(foundIndex, 1);
+                heartIndex--;
                 
             } else if (asset.type == "particle") {
                 const foundIndex = particlesArray.findIndex(particle => areEqual(particle, asset));
                 particlesArray.splice(foundIndex, 1);
+                particleIndex--;
             };
         };
         
@@ -1632,7 +1608,7 @@
             indexParam = 0;
 
             player.x = (canvas.width / 2) - 7.5;
-            player.y = (canvas.height / 2) + 70;
+            player.y = 0;
             spear.x = player.x - player.spearOffset;
 
             camera.y = 0;
@@ -1647,31 +1623,10 @@
 
             world.lifeLeft = 3;
 
-            while (platformsArray.length < 25) {
+            while (platformsArray.length < 10) {
                 platformSpawner();
-            }
+            };
 
-            platformsArray.forEach((platform) => {
-                if (platform.type == 'coin') {
-                    createCoins(platform);
-                };
-                if (platform.type == 'enemy') {
-                    createEnemies(platform);
-                };
-                if (platform.type == 'heart') {
-                    createHearts(platform);
-                };
-                if (platform.type == 'tramboline') {
-                    createTrambolines(platform);
-                };
-                if (platform.type == 'booster') {
-                    createBoosters(platform);
-                };
-                if (platform.type == 'particle') {
-                    createParticles(platform);
-                };
-            });
-            
             clearCanvas();
             createBackground();
             animate();
@@ -1743,28 +1698,18 @@
         //#region Animate
         
         function animate() {
-            
-            updateWorld();
-            handleBackground();
-            handleCamera();
-            handlePlayer();
-            handlePlatforms();
-            handleTrambolines();
-            handleParticles();
-            handleCoins();
-            handleBoosters();
-            handleHearts(); 
-            handleHeartIcons();
-            handleEnemies();
-            updateMinValue(player.y);
-            
+
             scoreUI.textContent = `${world.score}`;
-            
+
             if ( camera.y + canvas.height < player.y) {
                 world.isRunning = false;
             };
 
             if (world.isRunning) {
+                if (platformsArray.length < 5) {
+                    platformSpawner();
+                };
+
                 requestAnimationFrame(animate);
             } else {
                 cancelAnimationFrame(animate);
@@ -1780,6 +1725,20 @@
                     gameOver();
                 };
             };
+
+            updateWorld();
+            handleBackground();
+            handleCamera();
+            handlePlayer();
+            handlePlatforms();
+            handleTrambolines();
+            handleParticles();
+            handleCoins();
+            handleBoosters();
+            handleHearts(); 
+            handleHeartIcons();
+            handleEnemies();
+            updateMinValue(player.y);
         };
         //#endregion
         
