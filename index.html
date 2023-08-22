@@ -180,6 +180,8 @@
         let jumpScore = 0;
         let minValue;
         var lowestPlatform;
+        let updatePlatform;
+        let runOnce = true;
 
         //#endregion
 
@@ -198,7 +200,7 @@
                 this.radius = Math.min(canvas.width, canvas.height) * 0.025;
             };
             update(){
-                jumpScore = Math.floor((((canvas.height / 2) + 90) - minValue) / 10);
+                jumpScore = Math.floor((firstPlatformY - minValue) / 10);
                 world.score = jumpScore + world.coinCount * 10 + world.enemyCount * 10;
             };
         };
@@ -214,22 +216,20 @@
         //#region Background
 
         let backgroundsArray = [];        
-        let backgroundIndex = 2;
-        let indexParam = 0;
+        let indexParam = -1;
+        const firstBackgroundY = -1600;
 
         class Background {
             constructor(){
-                this.y = -1600;
+                indexParam++;
+
+                this.nextBackgroundCreated = false;
+                this.id = indexParam;
+                this.y = this.id * firstBackgroundY;
                 this.height = canvas.height * 2;
                 this.width = canvas.width;
-                this.index = 0;
             }
 
-            updateStats(){
-                this.index = indexParam;
-                indexParam++;
-            }
-            
             //#region drawBackground
 
              draw(){
@@ -295,26 +295,27 @@
                             
                 const background = new Image();
                 background.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgBackground)}`;
-              
-                ctx.drawImage(background, 0, (this.index * this.y) - camera.y, this.width, this.height + 10);
+
+                ctx.drawImage(background, 0, this.y - camera.y, this.width, this.height + 10);
 
             };
 
             //#endregion
         
             handle(){
-                if ( (camera.height + camera.y) < this.y) {
+                if ( (camera.height + camera.y) < (this.y / 2) && !this.nextBackgroundCreated) {
+                    createBackground();
+                    this.nextBackgroundCreated = true;
+                };
+                if ((camera.height + camera.y) < this.y){
                     deleteBackground(this);
-                    backgroundIndex++;
+
                 };
             };
         };
 
         function createBackground(){
-            for (let i = 0; i < backgroundIndex; i++) {
-                backgroundsArray.push(new Background());
-                backgroundsArray[i].updateStats();
-            };
+            backgroundsArray.push(new Background());
         };
 
         function handleBackground(){
@@ -357,7 +358,7 @@
         class Player {
             constructor(){
                 this.x = (canvas.width / 2) - 7.5;
-                this.y = 0; 
+                this.y = -20; 
                 this.width = 17.8;
                 this.height = 50;
                 this.speedY = 0;
@@ -566,7 +567,7 @@
 
         let statIndex = 0;
 
-        const firstPlatformY = 20;
+        const firstPlatformY = 0;
         const firstPlatformX = canvas.width/2 - 25/2;
 
         class Platform {
@@ -585,16 +586,13 @@
 
                 this.id = statIndex;
                 statIndex++;
-    
-                let yMin = firstPlatformY - 135;
+
+                let yMin = firstPlatformY - 90;
                 let yMax = firstPlatformY;
                 let yParam = Math.floor(Math.random() * (yMax - yMin) + yMin);
     
-                if (yRate < 0 ) {
-                    
-                    yParam = yRate * yParam;
-                    // console.log(yRate);
-                    console.log(yParam);
+                if (yRate > 0 ) {
+                    yParam =  -yRate * 90 + yParam;
                 };
     
                 let xParam = Math.random() * (canvas.width - this.width);
@@ -791,14 +789,14 @@
             const spawnRate = Math.random();
             
             if (spawnRate < 0.5) {
-                spawnFrequency = 3;
+                spawnFrequency = 2;
             } else {
-                spawnFrequency = 4;
+                spawnFrequency = 3;
             };
-
             for (let i = 0; i < spawnFrequency; i++) {
                 platformsArray.push(new Platform());
             };
+            console.log(platformsArray);
         };
 
         function handlePlatforms() {
@@ -1526,20 +1524,35 @@
                 };
             }; 
         };
-        
-        function updateMinValue(newValue) {
-            minValue = Math.min(minValue, newValue);
-        };
-
+               
         function findLowestPlatform() {
-
+            
             const keyToExclude = ["isMoving", "particle", "breakable"];
             let filteredContainer = platformsArray
-                .filter(obj => !keyToExclude.some(key => obj.hasOwnProperty(key)))
-
+            .filter(obj => !keyToExclude.some(key => obj.hasOwnProperty(key)))
+            
             lowestPlatform = filteredContainer.reduce((lowestPlatform, currentPlatform) => {
                 return currentPlatform.y > lowestPlatform.y ? currentPlatform : lowestPlatform; 
             });
+        };
+
+        function updateMinValue(newValue) {
+            minValue = Math.min(minValue, newValue);
+            platformSpawnController();
+        };
+
+        function platformSpawnController() {
+            if (runOnce) {
+                updatePlatform = minValue - 225;
+                runOnce = false;
+            };
+            if(updatePlatform > minValue && !runOnce) {
+                updatePlatform = minValue - 225;
+                for (let i = 0; i < 3; i++) {
+                    platformSpawner();
+                };
+                console.log(true);
+            };
         };
 
         function clearCanvas() {
@@ -1604,8 +1617,7 @@
             boosterIndex = 0;
             enemyIndex = 0;
             heartIndex = 0;
-            backgroundIndex = 2;
-            indexParam = 0;
+            indexParam = -1;
 
             player.x = (canvas.width / 2) - 7.5;
             player.y = 0;
@@ -1623,12 +1635,13 @@
 
             world.lifeLeft = 3;
 
-            while (platformsArray.length < 10) {
+            clearCanvas();
+            for (let i = 0; i < 2; i++) {
+                createBackground();
+            };
+            for (let i = 0; i < 10; i++) {
                 platformSpawner();
             };
-
-            clearCanvas();
-            createBackground();
             animate();
         });
         
@@ -1706,10 +1719,6 @@
             };
 
             if (world.isRunning) {
-                if (platformsArray.length < 5) {
-                    platformSpawner();
-                };
-
                 requestAnimationFrame(animate);
             } else {
                 cancelAnimationFrame(animate);
@@ -1725,7 +1734,7 @@
                     gameOver();
                 };
             };
-
+            
             updateWorld();
             handleBackground();
             handleCamera();
@@ -1740,6 +1749,7 @@
             handleEnemies();
             updateMinValue(player.y);
         };
+
         //#endregion
         
     });
