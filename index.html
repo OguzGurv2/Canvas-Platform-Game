@@ -356,33 +356,7 @@
 
         //#region Player
 
-        class Player {
-            constructor(){
-                this.x = (canvas.width / 2) - 7.5;
-                this.y = -50; 
-                this.width = 17.8;
-                this.height = 50;
-                this.speedY = 0;
-                this.isJumping = true;
-                this.isFalling = false;
-                this.isFlying = false;
-                this.isDragging = false;
-                this.freeze = false;
-                this.spearOffset = 6;
-                this.jumpStrength = 3;
-                this.jumpDuration = 100;
-                this.fallingFrame = 3 * this.jumpDuration / 4; 
-                this.jumpFrame = 0;
-                this.hasCollided = false;
-                this.gravity = world.gravity * 10;
-                this.spriteWidth = 53.25;
-                this.spriteHeigth = 103.2;
-                this.frameX = 0;
-            };
-      
-            draw(){
-                
-                //#region Anim SVG
+            //#region Anim SVG
 
                 const animSVG = `
                 <svg enable-background="new 0 0 3110.11 861.06" version="1.1" viewBox="0 0 3110.1 861.06" xml:space="preserve" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -945,12 +919,46 @@
         `;
                     
                 //#endregion
+
+        const playerImage = new Image();
+        playerImage.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(animSVG)}`;
+        let pngDataUrl;
+
+        playerImage.onload = function() {
+            const hiddenCanvas = document.createElement('canvas');
+            const hiddenctx = hiddenCanvas.getContext('2d');
+            hiddenctx.drawImage(playerImage, 0, 0);
+
+            pngDataUrl = hiddenCanvas.toDataURL('image/png');
+        };
+
+        class Player {
+            constructor(){
+                this.x = (canvas.width / 2) - 7.5;
+                this.y = -50; 
+                this.width = 17.8;
+                this.height = 50;
+                this.speedY = 0;
+                this.isJumping = true;
+                this.isFalling = false;
+                this.isFlying = false;
+                this.isDragging = false;
+                this.freeze = false;
+                this.spearOffset = 6;
+                this.jumpStrength = 3;
+                this.jumpDuration = 100;
+                this.fallingFrame = 3 * this.jumpDuration / 4; 
+                this.jumpFrame = 0;
+                this.hasCollided = false;
+                this.gravity = world.gravity * 10;
+                this.frameX = 0;
+            };
+            
+            draw(){
+                const pngImage = new Image();
+                pngImage.src = pngDataUrl;
                 
-                const playerImage = new Image();
-                playerImage.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(animSVG)}`;
-                
-                ctx.fillRect(this.x, this.y - camera.y, this.width, this.height);
-                ctx.drawImage(playerImage, this.spriteWidth  * this.frameX, 0, this.spriteWidth, this.spriteHeigth, this.x - 10, this.y - 50 - camera.y, this.spriteWidth, this.spriteHeigth);
+                ctx.drawImage(pngImage, pngImage.width / 7 * this.frameX, 0, pngImage.width / 7, pngImage.height, this.x - 15, this.y - 25 - camera.y, pngImage.width / 7, pngImage.height);
             };
             
             update(){
