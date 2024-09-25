@@ -3,28 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas Game</title>
-    <script src="src/index.js"></script>
+    <title>Platform Game</title>
     <style>
         body {
+            background-color: black;
+            height: 100vh;
             margin: 0;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: black;
         }
-
+        .game-div {
+            display: flex;             
+            justify-content: center;   
+            align-items: center;       
+            height: fit-content;      
+            position: relative;      
+        }
         canvas {
-            background-color: #fff;
-            width: 100%;
-            height: auto;
-            max-width: 400px; 
-            max-height: 800px;
+            background: #e0e0e0; 
+            display: block; 
+            margin: auto;
+            max-width: 400px;
+            max-height: 800px; 
+        }
+        .game-div > div {
+            position: absolute;
+            z-index: 1;
+            justify-self: center;
+            align-self: center;
+            display: flex;
+            flex-direction: column;
+        }
+        #countdown {
+            display: none;
+            position: absolute;
+            z-index: 1;
+            color: red;
+            font-size: 48px;
         }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="400" height="800"></canvas>
+    <div class="game-div">
+        <canvas width="400" height="800"></canvas>
+        <div id="menu">
+            <p id="info">Welcome to Platform Jumper!</p>
+            <button id="start-btn">Start</button>
+        </div>
+        <p id="countdown">3</p>
+    </div>
+    <script src="src/index.js"></script>
 </body>
 </html>
