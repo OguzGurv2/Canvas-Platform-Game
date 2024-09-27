@@ -4,48 +4,86 @@ document.addEventListener("DOMContentLoaded", () => {
 
     class Camera {
         constructor() {
-            this.y = 0;  
+            this.y = 0;
             this.x = 0;
             this.width = canvas.width;
-            this.height = canvas.height;  
+            this.height = canvas.height;
         };
     }
 
     class World {
         constructor() {
+            this.gameIsActive = false;
             this.gravity = 1;
-            this.fps = 12;
-            this.jumpForce = 15;
+            this.fps = 16;
+            this.jumpForce = 20;
             this.movementSpeed = 10;
+            this.enemies = [];
+            this.coins = [];
             this.platforms = [];
             this.platformCount = 15;
-            this.lives = 3;  
-            this.score = 0;  
+            this.platformWidth = 75;
+            this.minSpacing = 30;
+            this.lives = 3;
+            this.score = 0;
 
             this.camera = new Camera();
             this.player = null;
-
-            this.generatePlatforms();
-            this.createPlayer();
-
-            this.gameLoop = this.gameLoop.bind(this);
-            setInterval(this.gameLoop, 1000 / this.fps);
             this.addMovementControls();
         }
 
+        prepareGame() {
+            this.enemies = [];
+            this.coins = [];
+            this.platforms = [];
+            this.lives = 3;
+            this.score = 0;
+            this.generatePlatforms();
+            this.createPlayer();
+            this.render();
+        }
+
         applyPhysics() {
-            this.player.dy += this.gravity;
+            if (this.player.dy < 20) {
+                this.player.dy += this.gravity;
+            }
         }
 
         rectCollisionDetector(player, platform) {
-            if (player.dy > 0 && 
-                player.y + player.height >= platform.y && 
-                player.y + player.height * 0.75 <= platform.y + platform.height * 0.5 && 
-                player.x + player.width > platform.x && 
-                player.x < platform.x + platform.width) { 
-                return true;
+            const playerBottom = player.y + player.height;
+            const platformTop = platform.y;
+            const platformBottom = platform.y + platform.height; 
+        
+            if (
+                player.dy > 0 && 
+                playerBottom >= platformTop &&  // Player's bottom is below the platform's top
+                playerBottom <= platformTop + platform.height &&  // Player's bottom is not below platform's bottom
+                player.x + player.width > platform.x && // Player's right side is past the platform's left
+                player.x < platform.x + platform.width // Player's left side is before the platform's right
+            ) {
+                return true;  // Collision detected
             }
-            return false;                     
+        
+            return false;  // No collision
+        }
+        
+
+        coinCollisionDetector(player, coin) {
+            return (
+                player.x < coin.x + coin.size &&
+                player.x + player.width > coin.x &&
+                player.y < coin.y + coin.size &&
+                player.y + player.height > coin.y
+            );
+        }
+
+        enemyCollisionDetector(player, enemy) {
+            return (
+                player.x < enemy.x + enemy.width &&
+                player.x + player.width > enemy.x &&
+                player.y < enemy.y + enemy.height &&
+                player.y + player.height > enemy.y
+            );
         }
 
         update() {
@@ -53,45 +91,74 @@ document.addEventListener("DOMContentLoaded", () => {
             this.player.movePlayer();
             this.updateCamera();
             this.regeneratePlatforms();
-        
+
             if (this.player.y < this.player.startY) {
                 const distanceTraveled = Math.floor(this.player.startY - this.player.y);
                 if (distanceTraveled > 0) {
-                    this.score += distanceTraveled; 
-                    this.player.startY = this.player.y; 
+                    this.score += distanceTraveled;
+                    this.player.startY = this.player.y;
                 }
             }
-        
+
             for (let platform of this.platforms) {
                 if (this.rectCollisionDetector(this.player, platform)) {
                     this.player.dy = 0;
-                    this.player.y = platform.y - this.player.height; 
+                    this.player.y = platform.y - this.player.height;
                     this.player.dy = -this.jumpForce;
                     break;
                 }
             }
-        
-            if (this.player.y > this.camera.y + canvas.height + this.player.height) {
-                this.lives--; 
-                if (this.lives > 0) {
-                    const lowestPlatformY = Math.max(...this.platforms.map(p => p.y));
-                    const lowestPlatforms = this.platforms.filter(p => p.y === lowestPlatformY);
-        
-                    const priorityPlatform = lowestPlatforms.reduce((prev, curr) => {
-                        return (prev.id < curr.id) ? prev : curr;
-                    });
 
-                    // Respawn player above the lowest platform
-                    this.player.y = priorityPlatform.y - 55; // 55 units above the lowest platform
-                    this.player.x = priorityPlatform.x + (priorityPlatform.width / 2) - (this.player.width / 2); 
-                    this.player.dy = 0; 
-                } else {
-                    alert("Game Over!"); 
-                    this.resetGame(); 
+            this.coins = this.coins.filter(coin => {
+                if (this.coinCollisionDetector(this.player, coin)) {
+                    this.score += 100; 
+                    return false; 
                 }
+                return true; 
+            });
+            this.checkPlayerStatus();
+        }
+
+        checkPlayerStatus() {
+            this.enemies.forEach(enemy => {
+                if (this.enemyCollisionDetector(this.player, enemy)) {
+                    this.lives--; 
+                    this.handlePlayerRespawn();
+                }
+            });
+            
+            if (this.player.y > this.camera.y + canvas.height + this.player.height) {
+                this.lives--;
+                this.handlePlayerRespawn();
+            }
+            this.handlePlayerLife();
+        }
+        
+        handlePlayerLife() {
+            if (this.lives <= 0) {
+                this.gameIsActive = false;
+                this.gameOver();
             }
         }
-              
+        
+        handlePlayerRespawn() {
+            if (this.lives > 0) {
+                const lowestPlatformY = Math.max(...this.platforms.map(p => p.y));
+                const lowestPlatforms = this.platforms.filter(p => p.y === lowestPlatformY);
+        
+                const priorityPlatform = lowestPlatforms.reduce((prev, curr) => {
+                    return (prev.id < curr.id) ? prev : curr;
+                });
+        
+                this.player.y = priorityPlatform.y - 55;
+                this.player.x = priorityPlatform.x + (priorityPlatform.width / 2) - (this.player.width / 2);
+                this.player.dy = 0;
+            } else {
+                this.gameIsActive = false;
+                this.gameOver();
+            }
+        }
+
         updateCamera() {
             if (this.player.minY < this.camera.y + canvas.height / 2) {
                 this.camera.y = this.player.minY - canvas.height / 2;
@@ -102,65 +169,149 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             this.player.render(this.camera);
             this.platforms.forEach(platform => platform.render(this.camera));
+            this.coins.forEach(coin => coin.render(this.camera)); 
+            this.enemies.forEach(enemy => enemy.render(this.camera)); 
 
             this.renderLives();
             this.renderScore();
         }
 
         gameLoop() {
-            this.update();
-            this.render();
+            if (this.gameIsActive) {
+                const frameDelay = 1000 / this.fps;
+
+                const loop = () => {
+                    this.update();
+                    this.render();
+
+                    setTimeout(() => {
+                        if (this.gameIsActive) requestAnimationFrame(loop);
+                    }, frameDelay);
+                };
+                requestAnimationFrame(loop);
+            }
         }
 
         generatePlatforms() {
-            const startY = 780; 
-            const platformSpacingY = 100; 
-            const platformWidth = 75;
+            const startY = 780;
             const canvasWidth = 400;
-            const minSpacing = 30;
-            let currentY = startY - platformSpacingY;
+            const sectionHeight = 200; 
+            const sections = 4; // Divide the canvas width into 4 sections
+            const sectionWidth = canvasWidth / sections; // Each section's width
+            let currentY = startY;
         
-            const firstPlatformX = (canvasWidth - platformWidth) / 2;
-            this.platforms.push(new Platform(firstPlatformX, startY));
+            const firstPlatformX = (canvasWidth - this.platformWidth) / 2;
+            this.platforms.push(new Platform(firstPlatformX, startY));  
+            currentY -= Math.floor(Math.random() * (105 - 95 + 1)) + 95;  
+            
+            let platformsInSection = 0;
+            let sectionStartY = currentY - sectionHeight;
+            let lastPlatformSection = Math.floor(firstPlatformX / sectionWidth); // Keep track of which section the last platform was in
         
             for (let i = 1; i < this.platformCount; i++) {
-                let x = Math.random() * (canvasWidth - platformWidth); 
-                
-                let overlapping = this.platforms.some(platform => {
-                    return Math.abs(x - platform.x) < platformWidth + minSpacing && platform.y === currentY; 
-                });
+                if (currentY <= sectionStartY) {
+                    sectionStartY -= sectionHeight;
+                    platformsInSection = 0; 
+                }
         
-                if (!overlapping) {
+                const platformsPerSection = Math.random() < 0.5 ? 2 : 3;
+        
+                if (platformsInSection < platformsPerSection) {
+                    let spacingY = Math.floor(Math.random() * (105 - 95 + 1)) + 95; 
+                    let newSection;
+        
+                    // Ensure the new platform is in a different section than the last platform
+                    do {
+                        newSection = Math.floor(Math.random() * sections); // Pick a random section between 0 and 3
+                    } while (newSection === lastPlatformSection);
+        
+                    let x = newSection * sectionWidth + Math.random() * (sectionWidth - this.platformWidth); // Random X position within the section
+                    
                     this.platforms.push(new Platform(x, currentY));
-                }
+                    platformsInSection++; 
+                    lastPlatformSection = newSection; // Update the last platform's section
         
-                if (Math.random() < 0.25) {
-                    let secondX = Math.random() * (canvasWidth - platformWidth);
-                    let secondOverlapping = this.platforms.some(platform => {
-                        return Math.abs(secondX - platform.x) < platformWidth + minSpacing && platform.y === currentY; 
-                    });
-        
-                    if (!secondOverlapping) {
-                        this.platforms.push(new Platform(secondX, currentY));
+                    if (Math.random() < 0.1) {
+                        this.spawnCoinsAndEnemies(x, currentY, this.platformWidth);
                     }
+        
+                    currentY -= spacingY;
+                } else {
+                    currentY = sectionStartY;
                 }
-                currentY -= platformSpacingY; 
             }
-        }
+        }        
         
         regeneratePlatforms() {
             this.platforms = this.platforms.filter(platform => platform.y <= this.camera.y + 800);
         
+            const sectionHeight = 200;
+            const canvasWidth = 400;
+            const sections = 4; // Divide the canvas width into 4 sections
+            const sectionWidth = canvasWidth / sections;
+            let lastPlatformY = this.platforms[this.platforms.length - 1].y;
+            let sectionStartY = lastPlatformY - sectionHeight;
+            let platformsInSection = 0;
+            let lastPlatformSection = Math.floor(this.platforms[this.platforms.length - 1].x / sectionWidth); // Track the last section used
+        
             while (this.platforms.length < this.platformCount) {
-                const lastPlatform = this.platforms[this.platforms.length - 1]; 
-                const newPlatformY = lastPlatform.y - 100; 
-                const newPlatformX = Math.random() * (canvas.width - 50); 
-                
-                const newPlatform = new Platform(newPlatformX, newPlatformY, this.platforms.length);
-                this.platforms.push(newPlatform);
+                if (lastPlatformY <= sectionStartY) {
+                    sectionStartY -= sectionHeight;
+                    platformsInSection = 0; 
+                }
+        
+                const platformsPerSection = Math.random() < 0.5 ? 2 : 3;
+        
+                if (platformsInSection < platformsPerSection) {
+                    const spacingY = Math.floor(Math.random() * (105 - 95 + 1)) + 95;
+                    lastPlatformY -= spacingY;
+        
+                    let newSection;
+                    
+                    // Ensure the new platform is in a different section
+                    do {
+                        newSection = Math.floor(Math.random() * sections); 
+                    } while (newSection === lastPlatformSection);
+        
+                    const newPlatformX = newSection * sectionWidth + Math.random() * (sectionWidth - this.platformWidth);
+                    this.platforms.push(new Platform(newPlatformX, lastPlatformY));
+                    platformsInSection++;
+                    lastPlatformSection = newSection; // Update the last platform's section
+        
+                    if (Math.random() < 0.1) {
+                        this.spawnCoinsAndEnemies(newPlatformX, lastPlatformY, this.platformWidth);
+                    }
+                } else {
+                    lastPlatformY = sectionStartY;
+                }
             }
-        }
+        }        
+        
+        spawnCoinsAndEnemies(platformX, platformY, platformWidth) {
+            const partWidth = platformWidth / 3; 
 
+            const coinPart = Math.floor(Math.random() * 3);
+            const coinX = platformX + coinPart * partWidth + (partWidth / 2) - 5; 
+            if (Math.random() < 0.1) {
+                this.coins.push(new Coin(coinX, platformY - 10));
+            }
+        
+            let enemyPart;
+            do {
+                enemyPart = Math.floor(Math.random() * 3); 
+            } while (enemyPart === coinPart); 
+            const enemyX = platformX + enemyPart * partWidth + (partWidth / 2) - (25 / 2);
+            const enemyY = platformY - 60;
+        
+            let enemySpacing = this.enemies.some(enemy => {
+                return Math.abs(enemyX - enemy.x) < 25 + this.minSpacing && enemy.y === enemyY;
+            });
+        
+            if (!enemySpacing) {
+                this.enemies.push(new Enemy(enemyX, enemyY));
+            }
+        }        
+        
         addMovementControls() {
             const keys = {};
 
@@ -168,11 +319,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 keys[event.key] = true;
 
                 if (keys['ArrowRight'] && keys['ArrowLeft']) {
-                    this.player.dx = 0; 
+                    this.player.dx = 0;
                 } else if (keys['ArrowRight']) {
-                    this.player.dx = this.movementSpeed; 
+                    this.player.dx = this.movementSpeed;
                 } else if (keys['ArrowLeft']) {
-                    this.player.dx = -this.movementSpeed; 
+                    this.player.dx = -this.movementSpeed;
                 }
             });
 
@@ -180,11 +331,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 keys[event.key] = false;
 
                 if (!keys['ArrowRight'] && !keys['ArrowLeft']) {
-                    this.player.dx = 0; 
+                    this.player.dx = 0;
                 } else if (keys['ArrowRight']) {
-                    this.player.dx = this.movementSpeed; 
+                    this.player.dx = this.movementSpeed;
                 } else if (keys['ArrowLeft']) {
-                    this.player.dx = -this.movementSpeed; 
+                    this.player.dx = -this.movementSpeed;
                 }
             });
         }
@@ -192,38 +343,20 @@ document.addEventListener("DOMContentLoaded", () => {
         renderLives() {
             for (let i = 0; i < this.lives; i++) {
                 ctx.fillStyle = 'red';
-                ctx.fillRect(10 + (i * 30), 10, 20, 20); 
+                ctx.fillRect(10 + (i * 30), 10, 20, 20);
             }
         }
 
         renderScore() {
-            ctx.fillStyle = 'black';  
-            ctx.font = '20px Arial';  
-            ctx.fillText(`Score: ${this.score}`, canvas.width - 120, 30);  
+            ctx.fillStyle = 'black';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${this.score}`, canvas.width - 120, 30);
         }
 
-        resetGame() {
-            this.showCountdown(3).then(() => {
-                this.platforms = []; // Clear all platforms
-                this.lives = 3; // Reset lives
-                this.score = 0; // Reset score
-                this.generatePlatforms(); // Generate new platforms
-                this.createPlayer(); // Recreate player
-            });
-        }
-
-        showCountdown(seconds) {
-            return new Promise((resolve) => {
-                let count = seconds;
-                const countdownInterval = setInterval(() => {
-                    alert(`Next game in ${count} seconds...`);
-                    count--;
-                    if (count < 0) {
-                        clearInterval(countdownInterval);
-                        resolve();
-                    }
-                }, 1000);
-            });
+        gameOver() {
+            menu.style.display = 'block';
+            menu.querySelector("#info").textContent = "Game Over!";
+            startBtn.textContent = "Restart";
         }
 
         createPlayer() {
@@ -233,10 +366,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     class Player {
         constructor(platform) {
-            this.x = platform.x + platform.width / 2 - 5; 
+            this.x = platform.x + platform.width / 2 - 5;
             this.y = platform.y - 60;
-            this.width = 25;
-            this.height = 50;
+            this.width = 30;
+            this.height = 60;
             this.dx = 0;
             this.dy = 0;
             this.minY = this.y;
@@ -244,60 +377,112 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         render(camera) {
+            let screenX = this.x;
+            let screenY = this.y - camera.y;
+
             ctx.fillStyle = 'green';
-            ctx.fillRect(this.x, this.y - camera.y, this.width, this.height);
+            ctx.fillRect(screenX, screenY, this.width, this.height);
+
+            if (screenX + this.width > canvas.width) {
+                const overflowRight = (screenX + this.width) - canvas.width;
+                ctx.fillRect(0, screenY, overflowRight, this.height);
+            }
+
+            if (screenX < 0) {
+                const overflowLeft = Math.abs(screenX);
+                ctx.fillRect(canvas.width - overflowLeft, screenY, overflowLeft, this.height);
+            }
         }
 
         movePlayer() {
             this.x += this.dx;
             this.y += this.dy;
-        
+
             if (this.y < this.minY) {
                 this.minY = this.y;
             }
-        
+
             if (this.x > canvas.width) {
-                this.x = this.x - canvas.width; 
-            } else if (this.x + this.width < 0) { 
-                this.x = canvas.width + this.x; 
+                this.x = this.x - canvas.width;
+            } else if (this.x + this.width < 0) {
+                this.x = canvas.width + this.x;
             }
-        }     
+        }
     }
 
     class Platform {
         constructor(x, y, id) {
-            this.id = id;
             this.x = x;
             this.y = y;
-            this.width = 75;
-            this.height = 10;
+            this.width = 90;  
+            this.height = 15; 
+            this.id = id;  
+        }
+    
+        render(camera) {
+            const screenX = this.x;
+            const screenY = this.y - camera.y;
+            ctx.fillStyle = 'blue';
+            ctx.fillRect(screenX, screenY, this.width, this.height);
+        }
+    }    
+
+    class Coin {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.size = 25;
         }
 
         render(camera) {
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(this.x, this.y - camera.y, this.width, this.height);
+            const screenX = this.x;
+            const screenY = this.y - camera.y;
+
+            ctx.fillStyle = 'gold';
+            ctx.beginPath();
+            ctx.arc(screenX + this.size / 2, screenY, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
         }
     }
 
-    document.querySelector("#start-btn").addEventListener('click', () => {
-        
-        document.querySelector("#menu").style.display = 'none';
-        const countdownElement = document.getElementById("countdown");
-        countdownElement.style.display = "block";
+    class Enemy {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+            this.width = 30;
+            this.height = 60;
+        }
 
+        render(camera) {
+            ctx.fillStyle = "red";
+            ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
+        }
+    }
+
+    const world = new World();
+
+    const menu = document.querySelector("#menu");
+    const startBtn = menu.querySelector("#start-btn");
+    const countdown = document.querySelector("#countdown");
+
+    startBtn.addEventListener('click', () => {
+        world.prepareGame();
+        menu.style.display = 'none';
+
+        countdown.textContent = 3;
+        countdown.style.display = "block";
+        
         let currentCount = 2;
         const interval = setInterval(() => {
-            countdownElement.textContent = currentCount;
             currentCount--;
+            countdown.textContent = currentCount + 1;
 
             if (currentCount < 0) {
                 clearInterval(interval);
-                countdownElement.style.display = "none";
-                new World();
+                countdown.style.display = "none";
+                world.gameIsActive = true;
+                world.gameLoop(); 
             }
         }, 1000);
-    
-
     });
-
 });
