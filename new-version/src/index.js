@@ -55,6 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.enemies = [];
             this.coins = [];
             this.platforms = [];
+            this.orbs = [];
             this.lives = 3;
             this.score = 0;
             this.camera.y = 0;
@@ -93,8 +94,9 @@ document.addEventListener("DOMContentLoaded", () => {
             this.updateCamera();
             this.findLowestPlatform();
             this.regeneratePlatforms();
+
             this.platforms.forEach(platform => platform.update());
-            this.orbs.forEach(orb => orb.update());
+            this.orbs.forEach(orb => {orb.update();});
         
             if (this.player.x + this.player.width > canvas.width) {
                 if (this.player.x > canvas.width / 2) {
@@ -137,7 +139,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             this.checkPlayerStatus();
         }
-        
 
         render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -290,13 +291,21 @@ document.addEventListener("DOMContentLoaded", () => {
             return false;
         }
 
-        circleCollisionDetector(player, circle) {
-            return (
-                player.x < circle.x + circle.size &&
-                player.x + player.width > circle.x &&
-                player.y < circle.y + circle.size &&
-                player.y + player.height > circle.y
-            );
+        circleCollisionDetector(rect, circle) {
+            const radius = circle.size / 2;
+
+            const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+            const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+    
+            const distanceX = closestX - circle.x;
+            const distanceY = closestY - circle.y;
+
+            const distanceSquared = distanceX * distanceX + distanceY * distanceY;
+
+            if (circle.size === 25) {
+                return distanceSquared < (radius + 5) * (radius + 5);
+            }
+            return distanceSquared < (radius * radius);
         }
 
         enemyCollisionDetector(player, enemy) {
@@ -345,7 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
 
                         if (platform.type === 'moving') {
-                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y, platform.id));
+                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y + 6, platform.id));
                         }
                     });
                     lastTwoSections.shift();
@@ -394,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
 
                         if (platform.type === 'moving' && Math.random() < 0.5) {
-                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y, platform.id));
+                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y + 6, platform.id));
                         }
                     });
 
@@ -582,13 +591,39 @@ document.addEventListener("DOMContentLoaded", () => {
         constructor(x, y, platformId) {
             this.x = x;
             this.y = y;
-            this.size = 5; 
-            this.dy = 2; 
-            this.platformId = platformId; 
+            this.startingY = y;
+            this.size = 9; 
+            this.dy = 5; 
+            this.platformId = platformId;
+            this.interval = 15;
+            this.isReturning = false;
+            this.isCollided = false;
         }
 
         update() {
-            this.y += this.dy; 
+            for (let i = 0; i < world.platforms.length; i++) {
+                const platform = world.platforms[i];
+                if (world.circleCollisionDetector(platform, this) && platform.id !== this.platformId) {
+                    this.isCollided = true; 
+                    break;
+                }
+            }
+            
+            if (!this.isReturning) {
+                if (this.interval < 80 && !this.isCollided) {
+                    this.y += this.dy;  
+                } else if (this.interval >= 80) { 
+                    this.isReturning = true; 
+                    this.isCollided = false; 
+                    this.interval = 0;
+                
+                    setTimeout(() => {
+                        this.y = this.startingY;
+                        this.isReturning = false; 
+                    }, 1000)
+                }
+            }
+            this.interval++;
         }
 
         render(camera) {
