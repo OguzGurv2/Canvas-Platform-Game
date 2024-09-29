@@ -88,6 +88,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.updateCamera();
             this.findLowestPlatform();
             this.regeneratePlatforms();
+            this.platforms.forEach(platform => platform.update()); 
 
             if (this.player.y < this.player.startY) {
                 const distanceTraveled = Math.floor(this.player.startY - this.player.y);
@@ -97,11 +98,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
 
-            for (let platform of this.platforms) {
+            for (let i = 0; i < this.platforms.length; i++) {
+                const platform = this.platforms[i];
                 if (this.rectCollisionDetector(this.player, platform)) {
                     this.player.dy = 0;
                     this.player.y = platform.y - this.player.height;
                     this.player.dy = -this.jumpForce;
+                    if (platform.type === 'breakable') {
+                        this.platforms.splice(i, 1); 
+                    }
                     break;
                 }
             }
@@ -243,18 +248,19 @@ document.addEventListener("DOMContentLoaded", () => {
         rectCollisionDetector(player, platform) {
             const playerBottom = player.y + player.height;
             const platformTop = platform.y;
-        
+            const playerBottom10Percent = player.y + player.height * 0.9;
+            
             if (
                 player.dy > 0 && 
                 playerBottom >= platformTop &&  
-                playerBottom <= platformTop + platform.height &&  
+                playerBottom10Percent <= platformTop + platform.height &&  
                 player.x + player.width > platform.x && 
                 player.x < platform.x + platform.width 
             ) {
                 return true;  
             }
-        
-            return false;  
+            
+            return false;
         }
 
         coinCollisionDetector(player, coin) {
@@ -286,7 +292,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const sections = 4;
             const sectionWidth = canvasWidth / sections; 
             let currentY = startY;
-        
+            
             const firstPlatformX = (canvasWidth - this.platformWidth) / 2;
             this.platforms.push(new Platform(firstPlatformX, startY, this.platformIndex));  
             currentY -= Math.floor(Math.random() * (105 - 95 + 1)) + 95;  
@@ -294,44 +300,44 @@ document.addEventListener("DOMContentLoaded", () => {
             let platformsInSection = 0;
             let sectionStartY = currentY - sectionHeight;
             let lastPlatformSection = Math.floor(firstPlatformX / sectionWidth); 
-        
+
             for (let i = 1; i < this.platformCount; i++) {
                 if (currentY <= sectionStartY) {
                     sectionStartY -= sectionHeight;
                     platformsInSection = 0; 
                 }
-        
-                const platformsPerSection = Math.random() < 0.5 ? 2 : 3;
-        
+
+                const platformsPerSection = Math.random() < 0.5 ? 3 : 4;
+
                 if (platformsInSection < platformsPerSection) {
                     let spacingY = Math.floor(Math.random() * (105 - 95 + 1)) + 95; 
-                    let newSection;
-        
-                    do {
-                        newSection = Math.floor(Math.random() * sections); 
-                    } while (newSection === lastPlatformSection);
-        
-                    let x = newSection * sectionWidth + Math.random() * (sectionWidth - this.platformWidth); 
-                    
-                    this.platforms.push(new Platform(x, currentY, ++this.platformIndex));
-                    platformsInSection++; 
-                    lastPlatformSection = newSection; 
-        
-                    this.spawnCoinsAndEnemies(x, currentY, this.platformWidth, this.platformIndex);
-        
+
+                    const newPlatforms = this.spawnPlatformsAtY(currentY, lastPlatformSection, sections, sectionWidth, canvasWidth);
+
+                    newPlatforms.forEach(platform => {
+                        this.platforms.push(platform);
+                        
+                        if (platform.type === 'normal') {
+                            this.spawnCoinsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
+                        }
+                    });
+
+                    platformsInSection += newPlatforms.length; 
+                    lastPlatformSection = Math.floor(newPlatforms[newPlatforms.length - 1].x / sectionWidth); 
+
                     currentY -= spacingY;
                 } else {
                     currentY = sectionStartY;
                 }
             }
-        }  
+        }
 
         regeneratePlatforms() {
             this.platforms = this.platforms.filter(platform => platform.y <= this.camera.y + 850);
-            const idsInPlatforms= this.platforms.map(obj => obj.id);
+            const idsInPlatforms = this.platforms.map(obj => obj.id);
             this.coins = this.coins.filter(obj => idsInPlatforms.includes(obj.platformId));
             this.enemies = this.enemies.filter(obj => idsInPlatforms.includes(obj.platformId));
-        
+            
             const sectionHeight = 200;
             const canvasWidth = 400;
             const sections = 4; 
@@ -340,64 +346,100 @@ document.addEventListener("DOMContentLoaded", () => {
             let sectionStartY = lastPlatformY - sectionHeight;
             let platformsInSection = 0;
             let lastPlatformSection = Math.floor(this.platforms[this.platforms.length - 1].x / sectionWidth); 
-        
+
             while (this.platforms.length < this.platformCount) {
                 if (lastPlatformY <= sectionStartY) {
                     sectionStartY -= sectionHeight;
                     platformsInSection = 0; 
                 }
-        
+
                 const platformsPerSection = Math.random() < 0.5 ? 2 : 3;
-        
+
                 if (platformsInSection < platformsPerSection) {
                     const spacingY = Math.floor(Math.random() * (105 - 95 + 1)) + 95;
                     lastPlatformY -= spacingY;
-        
-                    let newSection;
-                    
-                    do {
-                        newSection = Math.floor(Math.random() * sections); 
-                    } while (newSection === lastPlatformSection);
-        
-                    const newPlatformX = newSection * sectionWidth + Math.random() * (sectionWidth - this.platformWidth);
-                    this.platforms.push(new Platform(newPlatformX, lastPlatformY, ++this.platformIndex));
-                    platformsInSection++;
-                    lastPlatformSection = newSection; 
-        
-                    this.spawnCoinsAndEnemies(newPlatformX, lastPlatformY, this.platformWidth, this.platformIndex);
+
+                    const newPlatforms = this.spawnPlatformsAtY(lastPlatformY, lastPlatformSection, sections, sectionWidth, canvasWidth);
+
+                    newPlatforms.forEach(platform => {
+                        this.platforms.push(platform);
+                        
+                        if (platform.type === 'normal') {
+                            this.spawnCoinsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
+                        }
+                    });
+
+                    platformsInSection += newPlatforms.length; 
+                    lastPlatformSection = Math.floor(newPlatforms[newPlatforms.length - 1].x / sectionWidth); 
                 } else {
                     lastPlatformY = sectionStartY;
                 }
             }
         }        
+
+        defineX(index, pWidth, pX) {
+            if (index === 0) {
+                return pX;
+            } else if (index === 1) {
+                return pWidth / 2 + pX - 7.5;
+            } else {
+                return pWidth + pX - 15;
+            }
+        }
         
+        spawnPlatformsAtY(currentY, lastPlatformSection, sections, sectionWidth) {
+            const platforms = [];
+            
+            const availableSections = [...Array(sections).keys()].filter(section => Math.abs(section - lastPlatformSection) >= 2); 
+            const platformSection = availableSections[Math.floor(Math.random() * availableSections.length)];
+            const platformX = platformSection * sectionWidth + (sectionWidth - this.platformWidth) / 2;
+        
+            const isBreakable = Math.random() < 0.1;
+            const isMoving = Math.random() < 0.1;
+            
+            let type;
+            if (isMoving && isBreakable) {
+                type = Math.random() < 0.5 ? 'moving' : 'breakable';
+            } else {
+                type = isMoving ? 'moving' : 
+                       isBreakable ? 'breakable' : 
+                       'normal';
+            }
+
+            platforms.push(new Platform(platformX, currentY, this.platformIndex++, type));
+        
+            return platforms;
+        }
+        
+        createMovingPlatform(x, y, index) {
+            const movingPlatform = new Platform(x, y, index, 'moving');
+            movingPlatform.direction = 1; 
+            movingPlatform.initialX = x;
+            return movingPlatform;
+        } 
+
         spawnCoinsAndEnemies(platformX, platformY, platformWidth, platformId) {
-            const partWidth = platformWidth / 3; 
+            const platform = this.platforms.find(p => p.id === platformId);
+            if (platform.color === 'yellow') return;
 
             const coinPart = Math.floor(Math.random() * 3);
-            const coinX = platformX + coinPart * partWidth + (partWidth / 2) - 5; 
+            let enemyPart;
+            do {
+                enemyPart = Math.floor(Math.random() * 3); 
+            } while (enemyPart === coinPart); 
+
+            const coinX = this.defineX(coinPart, platformWidth, platformX);
+            const enemyX = this.defineX(enemyPart, platformWidth, platformX); 
+
             if (Math.random() < 0.1) {
                 this.coins.push(new Coin(coinX, platformY - 15, platformId));
             }
         
             if (Math.random() < 0.1) {
-                let enemyPart;
-                do {
-                    enemyPart = Math.floor(Math.random() * 3); 
-                } while (enemyPart === coinPart); 
-                const enemyX = platformX + enemyPart * partWidth + (partWidth / 2) - (25 / 2);
-                const enemyY = platformY - 60;
-            
-                let enemySpacing = this.enemies.some(enemy => {
-                    return Math.abs(enemyX - enemy.x) < 25 + this.minSpacing && enemy.y === enemyY;
-                });
-            
-                if (!enemySpacing) {
-                    this.enemies.push(new Enemy(enemyX, enemyY, platformId));
-                }
+                this.enemies.push(new Enemy(enemyX, platformY - 60, platformId));
             }
         }       
-        
+
         //#endregion
     }
 
@@ -456,21 +498,40 @@ document.addEventListener("DOMContentLoaded", () => {
     //#region Platform Class
 
     class Platform {
-        constructor(x, y, id) {
+        constructor(x, y, id, type = 'normal') {
             this.x = x;
             this.y = y;
-            this.width = 90;  
-            this.height = 15; 
-            this.id = id;  
+            this.width = 75;
+            this.height = 10;
+            this.id = id;
+            this.type = type; 
+            this.direction = 0; 
+            this.initialX = x; 
+            this.movementRange = 25; 
+            this.movementSpeed = 2; 
+            if (this.type === 'moving') {
+                this.direction = 1; 
+            }
+            console.log(this.type)
         }
     
         render(camera) {
-            const screenX = this.x;
-            const screenY = this.y - camera.y;
-            ctx.fillStyle = 'blue';
-            ctx.fillRect(screenX, screenY, this.width, this.height);
+            ctx.fillStyle = 
+            this.type === 'normal' ? 'blue' :
+            this.type === 'moving' ? 'black' :
+            'yellow';
+            ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
         }
-    }    
+
+        update() {   
+            if (this.type === 'moving') {
+                this.x += this.direction * this.movementSpeed;
+                if (this.x >= this.initialX + this.movementRange || this.x <= this.initialX - this.movementRange) {
+                    this.direction *= -1; 
+                }
+            }
+        }
+    }
 
     //#endregion
 
