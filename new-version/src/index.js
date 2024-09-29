@@ -25,15 +25,20 @@ document.addEventListener("DOMContentLoaded", () => {
             this.gameIsActive = false;
             this.gravity = 1;
             this.fps = 16;
-            this.jumpForce = 20;
+            this.jumpForce = 15;
             this.movementSpeed = 10;
             this.enemies = [];
             this.coins = [];
+            this.orbs = [];
             this.platforms = [];
+            this.lowestPlatforms = [];
             this.platformCount = 15;
             this.platformWidth = 75;
             this.platformIndex = 0;
-            this.lowestPlatforms = [];
+            this.canvasWidth = canvas.width;
+            this.sectionHeight = 300; 
+            this.sections = 4;
+            this.sectionWidth = this.canvasWidth / this.sections; 
             this.minSpacing = 30;
             this.lives = 3;
             this.score = 0;
@@ -88,16 +93,27 @@ document.addEventListener("DOMContentLoaded", () => {
             this.updateCamera();
             this.findLowestPlatform();
             this.regeneratePlatforms();
-            this.platforms.forEach(platform => platform.update()); 
-
+            this.platforms.forEach(platform => platform.update());
+            this.orbs.forEach(orb => orb.update());
+        
+            if (this.player.x + this.player.width > canvas.width) {
+                if (this.player.x > canvas.width / 2) {
+                    this.player.x = this.player.x - canvas.width;
+                }
+            } else if (this.player.x < 0) {
+                if (this.player.x + this.player.width < canvas.width / 2) {
+                    this.player.x = this.player.x + canvas.width;
+                }
+            }
+        
             if (this.player.y < this.player.startY) {
-                const distanceTraveled = Math.floor(this.player.startY - this.player.y);
+                const distanceTraveled = Math.floor((this.player.startY - this.player.y) / 2);
                 if (distanceTraveled > 0) {
                     this.score += distanceTraveled;
                     this.player.startY = this.player.y;
                 }
             }
-
+        
             for (let i = 0; i < this.platforms.length; i++) {
                 const platform = this.platforms[i];
                 if (this.rectCollisionDetector(this.player, platform)) {
@@ -110,16 +126,18 @@ document.addEventListener("DOMContentLoaded", () => {
                     break;
                 }
             }
-
+        
             this.coins = this.coins.filter(coin => {
-                if (this.coinCollisionDetector(this.player, coin)) {
-                    this.score += 100; 
+                if (this.circleCollisionDetector(this.player, coin)) {
+                    this.score += 50; 
                     return false; 
                 }
                 return true; 
             });
+
             this.checkPlayerStatus();
         }
+        
 
         render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -127,6 +145,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.platforms.forEach(platform => platform.render(this.camera));
             this.coins.forEach(coin => coin.render(this.camera)); 
             this.enemies.forEach(enemy => enemy.render(this.camera)); 
+            this.orbs.forEach(orb => orb.render(this.camera)); 
 
             this.renderLives();
             this.renderScore();
@@ -143,12 +162,6 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.fillStyle = 'black';
             ctx.font = '20px Arial';
             ctx.fillText(`Score: ${this.score}`, canvas.width - 120, 30);
-        }
-
-        findLowestPlatform() {
-            const filteredPlatforms = this.platforms.filter(p => p.y <= this.camera.y + 800);
-            const lowestPlatformY = Math.max(...filteredPlatforms.map(p => p.y));
-            this.lowestPlatforms = this.platforms.filter(p => p.y === lowestPlatformY);
         }
 
         //#endregion
@@ -179,6 +192,14 @@ document.addEventListener("DOMContentLoaded", () => {
                 this.lives--;
                 this.handlePlayerRespawn();
             }
+
+            this.orbs.forEach(orb => {
+                if (this.circleCollisionDetector(this.player, orb)) {
+                    this.lives--; 
+                    this.handlePlayerRespawn();
+                }
+            });
+
             this.handlePlayerLife();
         }
         
@@ -235,6 +256,12 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
+        findLowestPlatform() {
+            const filteredPlatforms = this.platforms.filter(p => p.y <= this.camera.y + 800);
+            const lowestPlatformY = Math.max(...filteredPlatforms.map(p => p.y));
+            this.lowestPlatforms = this.platforms.filter(p => p.y === lowestPlatformY);
+        }
+
         gameOver() {
             menu.style.display = 'block';
             menu.querySelector("#info").textContent = "Game Over!";
@@ -248,7 +275,7 @@ document.addEventListener("DOMContentLoaded", () => {
         rectCollisionDetector(player, platform) {
             const playerBottom = player.y + player.height;
             const platformTop = platform.y;
-            const playerBottom10Percent = player.y + player.height * 0.9;
+            const playerBottom10Percent = player.y + player.height * 0.85;
             
             if (
                 player.dy > 0 && 
@@ -263,12 +290,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return false;
         }
 
-        coinCollisionDetector(player, coin) {
+        circleCollisionDetector(player, circle) {
             return (
-                player.x < coin.x + coin.size &&
-                player.x + player.width > coin.x &&
-                player.y < coin.y + coin.size &&
-                player.y + player.height > coin.y
+                player.x < circle.x + circle.size &&
+                player.x + player.width > circle.x &&
+                player.y < circle.y + circle.size &&
+                player.y + player.height > circle.y
             );
         }
 
@@ -286,33 +313,29 @@ document.addEventListener("DOMContentLoaded", () => {
         //#region Platform Spawn Logic
 
         generatePlatforms() {
-            const startY = 780;
-            const canvasWidth = 400;
-            const sectionHeight = 200; 
-            const sections = 4;
-            const sectionWidth = canvasWidth / sections; 
+            const startY = canvas.height - 20;
             let currentY = startY;
             
-            const firstPlatformX = (canvasWidth - this.platformWidth) / 2;
+            const firstPlatformX = (this.canvasWidth - this.platformWidth) / 2;
             this.platforms.push(new Platform(firstPlatformX, startY, this.platformIndex));  
-            currentY -= Math.floor(Math.random() * (105 - 95 + 1)) + 95;  
+            currentY -= Math.floor(Math.random() * (55 - 50 + 1)) + 50;  
             
             let platformsInSection = 0;
-            let sectionStartY = currentY - sectionHeight;
-            let lastPlatformSection = Math.floor(firstPlatformX / sectionWidth); 
+            let sectionStartY = currentY - this.sectionHeight;
+            let lastTwoSections = [Math.floor(firstPlatformX / this.sectionWidth), null];
 
             for (let i = 1; i < this.platformCount; i++) {
                 if (currentY <= sectionStartY) {
-                    sectionStartY -= sectionHeight;
+                    sectionStartY -= this.sectionHeight;
                     platformsInSection = 0; 
                 }
 
-                const platformsPerSection = Math.random() < 0.5 ? 3 : 4;
+                const platformsPerSection = Math.random() < 0.8 ? 2 : 3;
 
                 if (platformsInSection < platformsPerSection) {
-                    let spacingY = Math.floor(Math.random() * (105 - 95 + 1)) + 95; 
+                    let spacingY = Math.floor(Math.random() *(65 - 50 + 1)) + 50; 
 
-                    const newPlatforms = this.spawnPlatformsAtY(currentY, lastPlatformSection, sections, sectionWidth, canvasWidth);
+                    const newPlatforms = this.spawnPlatformsAtY(currentY, lastTwoSections);
 
                     newPlatforms.forEach(platform => {
                         this.platforms.push(platform);
@@ -320,10 +343,13 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (platform.type === 'normal') {
                             this.spawnCoinsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
                         }
-                    });
 
-                    platformsInSection += newPlatforms.length; 
-                    lastPlatformSection = Math.floor(newPlatforms[newPlatforms.length - 1].x / sectionWidth); 
+                        if (platform.type === 'moving') {
+                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y, platform.id));
+                        }
+                    });
+                    lastTwoSections.shift();
+                    lastTwoSections.push(Math.floor(newPlatforms[newPlatforms.length - 1].x / this.sectionWidth)); 
 
                     currentY -= spacingY;
                 } else {
@@ -333,33 +359,32 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         regeneratePlatforms() {
-            this.platforms = this.platforms.filter(platform => platform.y <= this.camera.y + 850);
+            this.platforms = this.platforms.filter(platform => platform.y <= this.camera.y + 825);
             const idsInPlatforms = this.platforms.map(obj => obj.id);
             this.coins = this.coins.filter(obj => idsInPlatforms.includes(obj.platformId));
             this.enemies = this.enemies.filter(obj => idsInPlatforms.includes(obj.platformId));
             
-            const sectionHeight = 200;
-            const canvasWidth = 400;
-            const sections = 4; 
-            const sectionWidth = canvasWidth / sections;
             let lastPlatformY = this.platforms[this.platforms.length - 1].y;
-            let sectionStartY = lastPlatformY - sectionHeight;
+            let sectionStartY = lastPlatformY - this.sectionHeight;
             let platformsInSection = 0;
-            let lastPlatformSection = Math.floor(this.platforms[this.platforms.length - 1].x / sectionWidth); 
+            let lastTwoSections = [
+                Math.floor(this.platforms[this.platforms.length - 1].x / this.sectionWidth),
+                this.platforms.length > 1 ? Math.floor(this.platforms[this.platforms.length - 2].x / this.sectionWidth) : null
+            ];
 
             while (this.platforms.length < this.platformCount) {
                 if (lastPlatformY <= sectionStartY) {
-                    sectionStartY -= sectionHeight;
+                    sectionStartY -= this.sectionHeight;
                     platformsInSection = 0; 
                 }
 
-                const platformsPerSection = Math.random() < 0.5 ? 2 : 3;
+                const platformsPerSection = Math.random() < 0.8 ? 2 : 3;
 
                 if (platformsInSection < platformsPerSection) {
-                    const spacingY = Math.floor(Math.random() * (105 - 95 + 1)) + 95;
+                    const spacingY = Math.floor(Math.random() * (65 - 50 + 1)) + 50;
                     lastPlatformY -= spacingY;
 
-                    const newPlatforms = this.spawnPlatformsAtY(lastPlatformY, lastPlatformSection, sections, sectionWidth, canvasWidth);
+                    const newPlatforms = this.spawnPlatformsAtY(lastPlatformY, lastTwoSections);
 
                     newPlatforms.forEach(platform => {
                         this.platforms.push(platform);
@@ -367,36 +392,35 @@ document.addEventListener("DOMContentLoaded", () => {
                         if (platform.type === 'normal') {
                             this.spawnCoinsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
                         }
+
+                        if (platform.type === 'moving' && Math.random() < 0.5) {
+                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y, platform.id));
+                        }
                     });
 
                     platformsInSection += newPlatforms.length; 
-                    lastPlatformSection = Math.floor(newPlatforms[newPlatforms.length - 1].x / sectionWidth); 
+                    lastTwoSections.shift();
+                    lastTwoSections.push(Math.floor(newPlatforms[newPlatforms.length - 1].x / this.sectionWidth)); 
                 } else {
                     lastPlatformY = sectionStartY;
                 }
             }
         }        
-
-        defineX(index, pWidth, pX) {
-            if (index === 0) {
-                return pX;
-            } else if (index === 1) {
-                return pWidth / 2 + pX - 7.5;
-            } else {
-                return pWidth + pX - 15;
-            }
-        }
         
-        spawnPlatformsAtY(currentY, lastPlatformSection, sections, sectionWidth) {
+        spawnPlatformsAtY(currentY, lastTwoSections) {
             const platforms = [];
-            
-            const availableSections = [...Array(sections).keys()].filter(section => Math.abs(section - lastPlatformSection) >= 2); 
+        
+            const availableSections = [...Array(this.sections).keys()].filter(section => 
+                !lastTwoSections.includes(section)
+            );
+        
             const platformSection = availableSections[Math.floor(Math.random() * availableSections.length)];
-            const platformX = platformSection * sectionWidth + (sectionWidth - this.platformWidth) / 2;
+            
+            const platformX = platformSection * this.sectionWidth + (this.sectionWidth - this.platformWidth) / 2;
         
             const isBreakable = Math.random() < 0.1;
             const isMoving = Math.random() < 0.1;
-            
+        
             let type;
             if (isMoving && isBreakable) {
                 type = Math.random() < 0.5 ? 'moving' : 'breakable';
@@ -405,7 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
                        isBreakable ? 'breakable' : 
                        'normal';
             }
-
+        
             platforms.push(new Platform(platformX, currentY, this.platformIndex++, type));
         
             return platforms;
@@ -428,8 +452,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 enemyPart = Math.floor(Math.random() * 3); 
             } while (enemyPart === coinPart); 
 
-            const coinX = this.defineX(coinPart, platformWidth, platformX);
-            const enemyX = this.defineX(enemyPart, platformWidth, platformX); 
+            const coinX = this.defineX(coinPart, platformWidth, platformX, 'coin');
+            const enemyX = this.defineX(enemyPart, platformWidth, platformX, 'enemy'); 
 
             if (Math.random() < 0.1) {
                 this.coins.push(new Coin(coinX, platformY - 15, platformId));
@@ -439,6 +463,24 @@ document.addEventListener("DOMContentLoaded", () => {
                 this.enemies.push(new Enemy(enemyX, platformY - 60, platformId));
             }
         }       
+
+        defineX(index, pWidth, pX, type) {
+            if (index === 0) {
+                return pX;
+            } else if (index === 1) {
+                if (type === 'coin') {
+                    return pWidth / 2 + pX - 12.5;
+                } else {
+                    return pWidth / 2 + pX - 15;
+                }   
+            } else {
+                if (type === 'coin') {
+                    return pWidth + pX - 25;    
+                } else {
+                    return pWidth + pX - 30;    
+                } 
+            }
+        }
 
         //#endregion
     }
@@ -512,7 +554,6 @@ document.addEventListener("DOMContentLoaded", () => {
             if (this.type === 'moving') {
                 this.direction = 1; 
             }
-            console.log(this.type)
         }
     
         render(camera) {
@@ -530,6 +571,32 @@ document.addEventListener("DOMContentLoaded", () => {
                     this.direction *= -1; 
                 }
             }
+        }
+    }
+
+    //#endregion
+
+    //#region Orb Class
+    
+    class Orb {
+        constructor(x, y, platformId) {
+            this.x = x;
+            this.y = y;
+            this.size = 5; 
+            this.dy = 2; 
+            this.platformId = platformId; 
+        }
+
+        update() {
+            this.y += this.dy; 
+        }
+
+        render(camera) {
+            ctx.fillStyle = 'purple';
+            ctx.beginPath();
+            ctx.arc(this.x - camera.x, this.y - camera.y, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.closePath();
         }
     }
 
