@@ -115,20 +115,42 @@ document.addEventListener("DOMContentLoaded", () => {
                     this.player.startY = this.player.y;
                 }
             }
+
+            if (this.player.dy > 0) {
+                this.player.isJumping = false;
+                this.player.isStuck = false;
+            }
         
             for (let i = 0; i < this.platforms.length; i++) {
                 const platform = this.platforms[i];
                 if (this.rectCollisionDetector(this.player, platform)) {
-                    this.player.dy = 0;
-                    this.player.y = platform.y - this.player.height;
-                    this.player.dy = -this.jumpForce;
-                    if (platform.type === 'breakable') {
-                        this.platforms.splice(i, 1); 
+                    this.player.dy = 0; 
+                    this.player.y = platform.y - this.player.height; 
+            
+                    if (platform.type === 'trampoline') {
+                        if (this.player.isStuck) {
+                            break; 
+                        }
+            
+                        this.player.isStuck = true; 
+                        this.player.stuckTimer = 4; 
+            
+                        setTimeout(() => {
+                            this.player.isStuck = false; 
+                            this.player.isJumping = true; 
+                            this.player.dy = -this.jumpForce * 1.5; 
+                        }, 1000); 
+                    } else {
+                        if (platform.type === 'breakable') {
+                            this.platforms.splice(i, 1); 
+                        }
+                        this.player.dy = -this.jumpForce; 
+                        this.player.isJumping = false; 
                     }
-                    break;
+                    break; 
                 }
             }
-        
+            
             this.coins = this.coins.filter(coin => {
                 if (this.circleCollisionDetector(this.player, coin)) {
                     this.score += 50; 
@@ -354,7 +376,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
 
                         if (platform.type === 'moving') {
-                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y + 6, platform.id));
+                            this.orbs.push(new Orb(platform.x, platform.width, platform.y + 6, platform.id));
                         }
                     });
                     lastTwoSections.shift();
@@ -403,7 +425,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         }
 
                         if (platform.type === 'moving' && Math.random() < 0.5) {
-                            this.orbs.push(new Orb(platform.x + platform.width / 2, platform.y + 6, platform.id));
+                            this.orbs.push(new Orb(platform.x, platform.width, platform.y + 6, platform.id));
                         }
                     });
 
@@ -418,20 +440,21 @@ document.addEventListener("DOMContentLoaded", () => {
         
         spawnPlatformsAtY(currentY, lastTwoSections) {
             const platforms = [];
-        
             const availableSections = [...Array(this.sections).keys()].filter(section => 
                 !lastTwoSections.includes(section)
             );
-        
-            const platformSection = availableSections[Math.floor(Math.random() * availableSections.length)];
             
+            const platformSection = availableSections[Math.floor(Math.random() * availableSections.length)];
             const platformX = platformSection * this.sectionWidth + (this.sectionWidth - this.platformWidth) / 2;
         
             const isBreakable = Math.random() < 0.1;
             const isMoving = Math.random() < 0.1;
-        
+            const isTrampoline = Math.random() < 0.1; 
+            
             let type;
-            if (isMoving && isBreakable) {
+            if (isTrampoline) {
+                type = 'trampoline'; 
+            } else if (isMoving && isBreakable) {
                 type = Math.random() < 0.5 ? 'moving' : 'breakable';
             } else {
                 type = isMoving ? 'moving' : 
@@ -440,10 +463,10 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         
             platforms.push(new Platform(platformX, currentY, this.platformIndex++, type));
-        
+            
             return platforms;
         }
-        
+         
         createMovingPlatform(x, y, index) {
             const movingPlatform = new Platform(x, y, index, 'moving');
             movingPlatform.direction = 1; 
@@ -508,34 +531,45 @@ document.addEventListener("DOMContentLoaded", () => {
             this.dy = 0;
             this.minY = this.y;
             this.startY = this.y;
+            this.isStuck = false; 
+            this.stuckTimer = 0;
         }
-
+    
         render(camera) {
             let screenX = this.x;
             let screenY = this.y - camera.y;
-
+    
             ctx.fillStyle = 'green';
             ctx.fillRect(screenX, screenY, this.width, this.height);
-
+    
             if (screenX + this.width > canvas.width) {
                 const overflowRight = (screenX + this.width) - canvas.width;
                 ctx.fillRect(0, screenY, overflowRight, this.height);
             }
-
+    
             if (screenX < 0) {
                 const overflowLeft = Math.abs(screenX);
                 ctx.fillRect(canvas.width - overflowLeft, screenY, overflowLeft, this.height);
             }
         }
-
+    
         movePlayer() {
+            if (this.isStuck) {
+                this.stuckTimer--;
+                if (this.stuckTimer <= 0) {
+                    this.isStuck = false;
+                    this.dy = -150; 
+                }
+                return; 
+            }
+    
             this.x += this.dx;
             this.y += this.dy;
-
+    
             if (this.y < this.minY) {
                 this.minY = this.y;
             }
-
+    
             if (this.x > canvas.width) {
                 this.x = this.x - canvas.width;
             } else if (this.x + this.width < 0) {
@@ -552,7 +586,7 @@ document.addEventListener("DOMContentLoaded", () => {
         constructor(x, y, id, type = 'normal') {
             this.x = x;
             this.y = y;
-            this.width = 75;
+            this.width = type === 'trampoline' ? 37.5 : 75;
             this.height = 10;
             this.id = id;
             this.type = type; 
@@ -567,12 +601,15 @@ document.addEventListener("DOMContentLoaded", () => {
     
         render(camera) {
             ctx.fillStyle = 
-            this.type === 'normal' ? 'blue' :
-            this.type === 'moving' ? 'black' :
-            'yellow';
+                this.type === 'normal' ? 'blue' :
+                this.type === 'moving' ? 'black' :
+                this.type === 'breakable' ? 'yellow' :
+                this.type === 'trampoline' ? 'orange' : 
+                'gray'; 
+            
             ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
         }
-
+    
         update() {   
             if (this.type === 'moving') {
                 this.x += this.direction * this.movementSpeed;
@@ -588,11 +625,13 @@ document.addEventListener("DOMContentLoaded", () => {
     //#region Orb Class
     
     class Orb {
-        constructor(x, y, platformId) {
-            this.x = x;
+        constructor(platformX, platformWidth, y, platformId) {
+            this.platformX = platformX;
+            this.platformWidth = platformWidth;
+            this.size = 9; 
+            this.x = this.platformX + Math.random() * (this.platformWidth - this.size);
             this.y = y;
             this.startingY = y;
-            this.size = 9; 
             this.dy = 5; 
             this.platformId = platformId;
             this.interval = 15;
@@ -601,26 +640,37 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         update() {
-            for (let i = 0; i < world.platforms.length; i++) {
-                const platform = world.platforms[i];
-                if (world.circleCollisionDetector(platform, this) && platform.id !== this.platformId) {
-                    this.isCollided = true; 
-                    break;
+            if (!this.isCollided) {
+                for (let i = 0; i < world.platforms.length; i++) {
+                    const platform = world.platforms[i];
+                    if (world.circleCollisionDetector(platform, this) && platform.id !== this.platformId) {
+                        this.isCollided = true; 
+                        break;
+                    }
                 }
             }
             
             if (!this.isReturning) {
-                if (this.interval < 80 && !this.isCollided) {
+                if (!this.isCollided) {
                     this.y += this.dy;  
-                } else if (this.interval >= 80) { 
+                }
+    
+                if (this.interval >= 64) {
                     this.isReturning = true; 
-                    this.isCollided = false; 
-                    this.interval = 0;
-                
+                    this.interval = 0; 
+                    
                     setTimeout(() => {
-                        this.y = this.startingY;
-                        this.isReturning = false; 
-                    }, 1000)
+                        if (this.isReturning) {
+                            this.isCollided = false; 
+                            this.isReturning = false; 
+                            this.y = this.startingY;
+                            world.platforms.forEach(platform => {
+                                if (platform.id === this.platformId) {
+                                    this.x = platform.x + Math.random() * (platform.width - this.size);
+                                }
+                            });
+                        }
+                    }, 1000);
                 }
             }
             this.interval++;
