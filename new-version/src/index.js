@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.movementSpeed = 10;
             this.enemies = [];
             this.coins = [];
+            this.hearts = [];
             this.orbs = [];
             this.platforms = [];
             this.lowestPlatforms = [];
@@ -54,6 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
         prepareGame() {
             this.enemies = [];
             this.coins = [];
+            this.hearts = [];
             this.platforms = [];
             this.orbs = [];
             this.lives = 3;
@@ -97,6 +99,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
             this.platforms.forEach(platform => platform.update());
             this.orbs.forEach(orb => {orb.update();});
+            this.hearts = this.hearts.filter(heart => {
+                if (this.rectCollisionDetector(this.player, heart)) {
+                    this.lives++;   
+                    return false;  
+                }
+                return true;  
+            });
         
             if (this.player.x + this.player.width > canvas.width) {
                 if (this.player.x > canvas.width / 2) {
@@ -123,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
             for (let i = 0; i < this.platforms.length; i++) {
                 const platform = this.platforms[i];
-                if (this.rectCollisionDetector(this.player, platform)) {
+                if (this.platformCollisionDetector(this.player, platform)) {
                     this.player.dy = 0; 
                     this.player.y = platform.y - this.player.height; 
             
@@ -169,6 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.coins.forEach(coin => coin.render(this.camera)); 
             this.enemies.forEach(enemy => enemy.render(this.camera)); 
             this.orbs.forEach(orb => orb.render(this.camera)); 
+            this.hearts.forEach(heart => heart.render(this.camera))
 
             this.renderLives();
             this.renderScore();
@@ -205,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         checkPlayerStatus() {
             this.enemies.forEach(enemy => {
-                if (this.enemyCollisionDetector(this.player, enemy)) {
+                if (this.rectCollisionDetector(this.player, enemy)) {
                     this.lives--; 
                     this.handlePlayerRespawn();
                 }
@@ -295,7 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         //#region Collision Detectors
 
-        rectCollisionDetector(player, platform) {
+        platformCollisionDetector(player, platform) {
             const playerBottom = player.y + player.height;
             const platformTop = platform.y;
             const playerBottom10Percent = player.y + player.height * 0.85;
@@ -330,7 +340,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return distanceSquared < (radius * radius);
         }
 
-        enemyCollisionDetector(player, enemy) {
+        rectCollisionDetector(player, enemy) {
             return (
                 player.x < enemy.x + enemy.width &&
                 player.x + player.width > enemy.x &&
@@ -372,7 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         this.platforms.push(platform);
                         
                         if (platform.type === 'normal') {
-                            this.spawnCoinsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
+                            this.spawnPickupsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
                         }
 
                         if (platform.type === 'moving') {
@@ -421,7 +431,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         this.platforms.push(platform);
                         
                         if (platform.type === 'normal') {
-                            this.spawnCoinsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
+                            this.spawnPickupsAndEnemies(platform.x, platform.y, this.platformWidth, platform.id);
                         }
 
                         if (platform.type === 'moving' && Math.random() < 0.5) {
@@ -474,43 +484,52 @@ document.addEventListener("DOMContentLoaded", () => {
             return movingPlatform;
         } 
 
-        spawnCoinsAndEnemies(platformX, platformY, platformWidth, platformId) {
+        spawnPickupsAndEnemies(platformX, platformY, platformWidth, platformId) {
             const platform = this.platforms.find(p => p.id === platformId);
-            if (platform.color === 'yellow') return;
-
+            if (platform.type === 'breakable' || platform.type === 'trampoline' || platform.type === 'moving') return;  
+    
             const coinPart = Math.floor(Math.random() * 3);
             let enemyPart;
             do {
                 enemyPart = Math.floor(Math.random() * 3); 
-            } while (enemyPart === coinPart); 
-
+            } while (enemyPart === coinPart);  
+            let heartPart;
+            do {
+                heartPart = Math.floor(Math.random() * 3); 
+            } while (heartPart === coinPart);  
+    
             const coinX = this.defineX(coinPart, platformWidth, platformX, 'coin');
             const enemyX = this.defineX(enemyPart, platformWidth, platformX, 'enemy'); 
-
+            const heartX = this.defineX(heartPart, platformWidth, platformX, 'heart'); 
+    
             if (Math.random() < 0.1) {
                 this.coins.push(new Coin(coinX, platformY - 15, platformId));
             }
-        
+    
             if (Math.random() < 0.1) {
                 this.enemies.push(new Enemy(enemyX, platformY - 60, platformId));
             }
-        }       
-
+    
+            if (Math.random() < 0.1) {
+                this.hearts.push(new Heart(heartX, platformY - 25, platformId));  
+            }
+        }
+         
         defineX(index, pWidth, pX, type) {
             if (index === 0) {
                 return pX;
             } else if (index === 1) {
-                if (type === 'coin') {
-                    return pWidth / 2 + pX - 12.5;
-                } else {
+                if (type === 'enemy') {
                     return pWidth / 2 + pX - 15;
-                }   
-            } else {
-                if (type === 'coin') {
-                    return pWidth + pX - 25;    
                 } else {
+                    return pWidth / 2 + pX - 12.5;
+                }
+            } else {
+                if (type === 'enemy') {
                     return pWidth + pX - 30;    
-                } 
+                } else {
+                    return pWidth + pX - 25;
+                }
             }
         }
 
@@ -586,7 +605,7 @@ document.addEventListener("DOMContentLoaded", () => {
         constructor(x, y, id, type = 'normal') {
             this.x = x;
             this.y = y;
-            this.width = type === 'trampoline' ? 37.5 : 75;
+            this.width = type === 'trampoline' || type === 'moving' ? 50 : 75;
             this.height = 10;
             this.id = id;
             this.type = type; 
@@ -640,16 +659,20 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         update() {
-            if (!this.isCollided) {
-                for (let i = 0; i < world.platforms.length; i++) {
-                    const platform = world.platforms[i];
-                    if (world.circleCollisionDetector(platform, this) && platform.id !== this.platformId) {
-                        this.isCollided = true; 
-                        break;
-                    }
+            let isStillCollided = false;
+
+            // Tüm platformlarla çarpışma kontrolü
+            for (let i = 0; i < world.platforms.length; i++) {
+                const platform = world.platforms[i];
+                if (world.circleCollisionDetector(platform, this) && platform.id !== this.platformId) {
+                    isStillCollided = true;
+                    break;
                 }
             }
             
+            // Çarpışma durumu güncelleniyor
+            this.isCollided = isStillCollided;
+
             if (!this.isReturning) {
                 if (!this.isCollided) {
                     this.y += this.dy;  
@@ -705,6 +728,27 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.beginPath();
             ctx.arc(screenX + this.size / 2, screenY, this.size / 2, 0, Math.PI * 2);
             ctx.fill();
+        }
+    }
+
+    //#endregion
+
+    //#region Heart Class
+    
+    class Heart {
+        constructor(x, y, platformId) {
+            this.x = x;
+            this.y = y;
+            this.width = 25;
+            this.height = 25;
+            this.platformId = platformId;
+        }
+    
+        render(camera) {
+            if (!this.isPickedUp) {
+                ctx.fillStyle = 'pink';  
+                ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
+            }
         }
     }
 
