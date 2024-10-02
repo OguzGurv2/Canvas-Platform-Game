@@ -30,6 +30,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.enemies = [];
             this.coins = [];
             this.hearts = [];
+            this.jetpacks = [];
             this.orbs = [];
             this.platforms = [];
             this.lowestPlatforms = [];
@@ -45,6 +46,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.score = 0;
             this.camera = new Camera();
             this.player = null;
+            this.spear = null;
             this.addMovementControls();
         }
 
@@ -56,8 +58,9 @@ document.addEventListener("DOMContentLoaded", () => {
             this.enemies = [];
             this.coins = [];
             this.hearts = [];
-            this.platforms = [];
+            this.jetpacks = [];
             this.orbs = [];
+            this.platforms = [];
             this.lives = 3;
             this.score = 0;
             this.camera.y = 0;
@@ -68,6 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         createPlayer() {
             this.player = new Player(this.platforms[0]);
+            this.spear = new Spear(this.player.x, this.player.y)
         }
 
         //#endregion
@@ -97,11 +101,30 @@ document.addEventListener("DOMContentLoaded", () => {
             this.findLowestPlatform();
             this.regeneratePlatforms();
 
+            this.spear.update(this.player.x, this.player.y);
             this.platforms.forEach(platform => platform.update());
             this.orbs.forEach(orb => {orb.update();});
             this.hearts = this.hearts.filter(heart => {
                 if (this.rectCollisionDetector(this.player, heart)) {
                     this.lives++;   
+                    return false;  
+                }
+                return true;  
+            });
+            this.jetpacks = this.jetpacks.filter(jetpack => {
+                if (this.rectCollisionDetector(this.player, jetpack)) {
+                    this.player.isFlying = true;
+                    this.player.dy = -2 * this.jumpForce;
+                    setTimeout(() => {
+                        this.player.isFlying = false;
+                    }, 2000)
+                    return false;  
+                }
+                return true;  
+            });
+            this.enemies = this.enemies.filter(enemy => {
+                if (this.rectCollisionDetector(this.spear, enemy)) {
+                    this.score += 100;   
                     return false;  
                 }
                 return true;  
@@ -174,11 +197,13 @@ document.addEventListener("DOMContentLoaded", () => {
         render() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             this.player.render(this.camera);
+            this.spear.render(this.camera);
             this.platforms.forEach(platform => platform.render(this.camera));
             this.coins.forEach(coin => coin.render(this.camera)); 
             this.enemies.forEach(enemy => enemy.render(this.camera)); 
             this.orbs.forEach(orb => orb.render(this.camera)); 
             this.hearts.forEach(heart => heart.render(this.camera))
+            this.jetpacks.forEach(jetpack => jetpack.render(this.camera))
 
             this.renderLives();
             this.renderScore();
@@ -202,7 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
         //#region Game Logic
 
         applyPhysics() {
-            if (this.player.dy < 19) {
+            if (this.player.dy < 19 && !this.player.isFlying) {
                 this.player.dy += this.gravity;
             }
         }
@@ -497,10 +522,15 @@ document.addEventListener("DOMContentLoaded", () => {
             do {
                 heartPart = Math.floor(Math.random() * 3); 
             } while (heartPart === coinPart);  
+            let jetpackPart;
+            do {
+                jetpackPart = Math.floor(Math.random() * 3); 
+            } while (jetpackPart === coinPart);
     
             const coinX = this.defineX(coinPart, platformWidth, platformX, 'coin');
             const enemyX = this.defineX(enemyPart, platformWidth, platformX, 'enemy'); 
             const heartX = this.defineX(heartPart, platformWidth, platformX, 'heart'); 
+            const jetpackX = this.defineX(jetpackPart, platformWidth, platformX, 'jetpack'); 
     
             if (Math.random() < 0.1) {
                 this.coins.push(new Coin(coinX, platformY - 15, platformId));
@@ -512,6 +542,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
             if (Math.random() < 0.1) {
                 this.hearts.push(new Heart(heartX, platformY - 25, platformId));  
+            }
+
+            if (Math.random() < 0.1) {
+                this.jetpacks.push(new Jetpack(jetpackX, platformY - 25, platformId));  
             }
         }
          
@@ -536,6 +570,8 @@ document.addEventListener("DOMContentLoaded", () => {
         //#endregion
     }
 
+    const world = new World();
+
     //#endregion
 
     //#region Player Class
@@ -552,6 +588,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.startY = this.y;
             this.isStuck = false; 
             this.stuckTimer = 0;
+            this.isFlying = false;
         }
     
         render(camera) {
@@ -593,6 +630,31 @@ document.addEventListener("DOMContentLoaded", () => {
                 this.x = this.x - canvas.width;
             } else if (this.x + this.width < 0) {
                 this.x = canvas.width + this.x;
+            }
+        }
+    }
+
+    //#endregion
+
+    //#region Spear Class
+
+    class Spear {
+        constructor(x, y) {
+            this.x = x - 20;
+            this.y = y - 30;
+            this.width = 10;
+            this.height = 20;
+        }
+
+        update(x, y) {
+            this.x = x - 20;
+            this.y = y - 30;
+        }
+    
+        render(camera) {
+            if (!this.isPickedUp) {
+                ctx.fillStyle = 'green';  
+                ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
             }
         }
     }
@@ -754,6 +816,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //#endregion
 
+    //#region Jetpack Class
+
+    class Jetpack {
+        constructor(x, y, platformId) {
+            this.x = x;
+            this.y = y;
+            this.width = 25;
+            this.height = 25;
+            this.platformId = platformId;
+        }
+    
+        render(camera) {
+            if (!this.isPickedUp) {
+                ctx.fillStyle = 'brown';  
+                ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
+            }
+        }
+    }
+
+    //#endregion
+
+    //#region Enemy Class
+
     class Enemy {
         constructor(x, y, platformId) {
             this.x = x;
@@ -769,7 +854,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    const world = new World();
+    //#endregion
 
     //#region Handle Menu
 
