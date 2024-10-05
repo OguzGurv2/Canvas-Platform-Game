@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         update() {
             this.applyPhysics();
-            this.player.movePlayer();
+            this.player.update();
             this.camera.update();
             this.findLowestPlatform();
             this.regeneratePlatforms();
@@ -214,6 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.enemies.forEach(enemy => {
                 if (this.rectCollisionDetector(this.player, enemy)) {
                     this.lives--; 
+                    this.player.isFlying = false;
                     this.handlePlayerRespawn();
                 }
             });
@@ -365,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         regeneratePlatforms() {
-            this.platforms = this.platforms.filter(platform => platform.y <= this.camera.y + 825);
+            this.platforms = this.platforms.filter(platform => platform.y <= this.camera.y + canvas.height + 20);
             const idsInPlatforms = this.platforms.map(obj => obj.id);
             this.coins = this.coins.filter(obj => idsInPlatforms.includes(obj.platformId));
             this.enemies = this.enemies.filter(obj => idsInPlatforms.includes(obj.platformId));
@@ -422,9 +423,14 @@ document.addEventListener("DOMContentLoaded", () => {
             const platformSection = availableSections[Math.floor(Math.random() * availableSections.length)];
             const platformX = platformSection * this.sectionWidth + (this.sectionWidth - this.platformWidth) / 2;
         
-            const isBreakable = Math.random() < 0.1;
-            const isMoving = Math.random() < 0.1;
-            const isTrampoline = Math.random() < 0.1; 
+            let isBreakable;
+            let isMoving;
+            let isTrampoline;
+            if (this.platformIndex > 5) {
+                isBreakable = Math.random() < 0.1;
+                isMoving = Math.random() < 0.1;
+                isTrampoline = Math.random() < 0.1; 
+            }
             
             let type;
             if (isTrampoline) {
@@ -451,42 +457,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
         spawnPickupsAndEnemies(platformX, platformY, platformWidth, platformId) {
             const platform = this.platforms.find(p => p.id === platformId);
-            if (platform.type === 'breakable' || platform.type === 'trampoline' || platform.type === 'moving') return;  
-    
-            const coinPart = Math.floor(Math.random() * 3);
-            let enemyPart;
-            do {
-                enemyPart = Math.floor(Math.random() * 3); 
-            } while (enemyPart === coinPart);  
-            let heartPart;
-            do {
-                heartPart = Math.floor(Math.random() * 3); 
-            } while (heartPart === coinPart);  
-            let jetpackPart;
-            do {
-                jetpackPart = Math.floor(Math.random() * 3); 
-            } while (jetpackPart === coinPart);
-    
-            const coinX = this.defineX(coinPart, platformWidth, platformX, 'coin');
-            const enemyX = this.defineX(enemyPart, platformWidth, platformX, 'enemy'); 
-            const heartX = this.defineX(heartPart, platformWidth, platformX, 'heart'); 
-            const jetpackX = this.defineX(jetpackPart, platformWidth, platformX, 'jetpack'); 
-    
+            if (platform.type === 'breakable' || platform.type === 'trampoline' || platform.type === 'moving') return;
+            
+            const availableParts = [0, 1, 2];
+            
+            const shuffle = (array) => {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            };
+            
+            shuffle(availableParts);
+            
+            const coinX = this.defineX(availableParts[0], platformWidth, platformX, 'coin');
+            const enemyX = this.defineX(availableParts[1], platformWidth, platformX, 'enemy');
+            const heartX = this.defineX(availableParts[2], platformWidth, platformX, 'heart');
+            
+            const objects = [];
             if (Math.random() < 0.1) {
-                this.coins.push(new Coin(coinX, platformY - 15, platformId));
+                objects.push('coin');
             }
-    
-            if (Math.random() < 0.1) {
-                this.enemies.push(new Enemy(enemyX, platformY - 60, platformId));
+            if (platform.id > 5 && Math.random() < 0.1) {
+                objects.push('enemy');
             }
-    
-            if (Math.random() < 0.1) {
-                this.hearts.push(new Heart(heartX, platformY - 25, platformId));  
+            if (platform.id > 5 && Math.random() < 0.1) {
+                objects.push('heart');
             }
-
-            if (Math.random() < 0.1) {
-                this.jetpacks.push(new Jetpack(jetpackX, platformY - 25, platformId));  
-            }
+            
+            objects.length = Math.min(objects.length, 3);
+            
+            objects.forEach((object) => {
+                switch (object) {
+                    case 'coin':
+                        this.coins.push(new Coin(coinX, platformY - 15, platformId));
+                        break;
+                    case 'enemy':
+                        this.enemies.push(new Enemy(enemyX, platformY - 60, platformId));
+                        break;
+                    case 'heart':
+                        this.hearts.push(new Heart(heartX, platformY - 25, platformId));
+                        break;
+                }
+            });
+            
         }
          
         defineX(index, pWidth, pX, type) {
@@ -556,6 +571,8 @@ document.addEventListener("DOMContentLoaded", () => {
             let secs = this.gameTime - mins * 60;
             if (secs === 0) {
                 secs = '00';
+            } else if (secs < 10) {
+                secs = '0' + secs;
             }
 
             ctx.fillText(`${mins}:${secs}`, canvas.width / 2 - 12.5, 30);
@@ -630,7 +647,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
     
-        movePlayer() {
+        update() {
             if (this.isStuck) {
                 this.stuckTimer--;
                 if (this.stuckTimer <= 0) {
@@ -666,7 +683,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (this.y < this.startY) {
                 const distanceTraveled = Math.floor((this.startY - this.y) / 2);
                 if (distanceTraveled > 0) {
-                    this.score += distanceTraveled;
+                    world.score += distanceTraveled;
                     this.startY = this.y;
                 }
             }
