@@ -2,19 +2,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const canvas = document.querySelector("canvas");
     const ctx = canvas.getContext('2d');
 
-    //#region Camera Class
-
-    class Camera {
-        constructor() {
-            this.y = 0;
-            this.x = 0;
-            this.width = canvas.width;
-            this.height = canvas.height;
-        };
-    }
-
-    //#endregion
-
     //#region World Class
 
     class World {
@@ -25,8 +12,6 @@ document.addEventListener("DOMContentLoaded", () => {
             this.gameIsActive = false;
             this.gravity = 1;
             this.fps = 16;
-            this.jumpForce = 15;
-            this.movementSpeed = 10;
             this.enemies = [];
             this.coins = [];
             this.hearts = [];
@@ -44,10 +29,8 @@ document.addEventListener("DOMContentLoaded", () => {
             this.minSpacing = 30;
             this.lives = 3;
             this.score = 0;
-            this.camera = new Camera();
             this.player = null;
             this.spear = null;
-            this.addMovementControls();
         }
 
         //#endregion
@@ -55,6 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
         //#region Prepare Game
 
         prepareGame() {
+            this.timer = new Timer();
+            this.camera = new Camera();
             this.enemies = [];
             this.coins = [];
             this.hearts = [];
@@ -65,13 +50,9 @@ document.addEventListener("DOMContentLoaded", () => {
             this.score = 0;
             this.camera.y = 0;
             this.generatePlatforms();
-            this.createPlayer();
-            this.render();
-        }
-
-        createPlayer() {
             this.player = new Player(this.platforms[0]);
             this.spear = new Spear(this.player.x, this.player.y)
+            this.render();
         }
 
         //#endregion
@@ -97,13 +78,71 @@ document.addEventListener("DOMContentLoaded", () => {
         update() {
             this.applyPhysics();
             this.player.movePlayer();
-            this.updateCamera();
+            this.camera.update();
             this.findLowestPlatform();
             this.regeneratePlatforms();
-
             this.spear.update(this.player.x, this.player.y);
             this.platforms.forEach(platform => platform.update());
-            this.orbs.forEach(orb => {orb.update();});
+            this.orbs.forEach(orb => orb.update());
+
+            if (this.timer.gameTime !== 0) {
+                this.timer.update();
+            } else {
+                this.gameOver();
+            }
+
+            this.handlePlayerLifes();
+        }
+
+        render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            this.player.render(this.camera);
+            this.spear.render(this.camera);
+            this.platforms.forEach(platform => platform.render(this.camera));
+            this.coins.forEach(coin => coin.render(this.camera)); 
+            this.enemies.forEach(enemy => enemy.render(this.camera)); 
+            this.orbs.forEach(orb => orb.render(this.camera)); 
+            this.hearts.forEach(heart => heart.render(this.camera))
+            this.jetpacks.forEach(jetpack => jetpack.render(this.camera))
+
+            this.timer.render();
+            this.renderLives();
+            this.renderScore();
+        }
+
+        renderLives() {
+            for (let i = 0; i < this.lives; i++) {
+                ctx.fillStyle = 'red';
+                ctx.fillRect(10 + (i * 20), 17.5, 15, 15);
+            }
+        }
+
+        renderScore() {
+            ctx.fillStyle = 'black';
+            ctx.font = '15px Arial';
+            const xSpace = 5;
+            let order = 0;
+            if (this.score > 0) {
+                order = Math.floor(Math.log10(Math.abs(this.score))) + 1;
+            }
+            ctx.fillText(`Score: ${this.score}`, canvas.width - 65 - (xSpace * order), 30);
+        }
+
+        //#endregion
+
+        //#region Game Logic
+
+        applyPhysics() {
+
+            if (this.player.dy < 19 && !this.player.isFlying) {
+                this.player.dy += this.gravity;
+            }
+
+            if (this.player.dy > 0) {
+                this.player.isJumping = false;
+                this.player.isStuck = false;
+            }
+
             this.hearts = this.hearts.filter(heart => {
                 if (this.rectCollisionDetector(this.player, heart)) {
                     this.lives++;   
@@ -111,10 +150,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return true;  
             });
+
             this.jetpacks = this.jetpacks.filter(jetpack => {
                 if (this.rectCollisionDetector(this.player, jetpack)) {
                     this.player.isFlying = true;
-                    this.player.dy = -2 * this.jumpForce;
+                    this.player.dy = -2 * this.player.jumpForce;
                     setTimeout(() => {
                         this.player.isFlying = false;
                     }, 2000)
@@ -122,6 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return true;  
             });
+
             this.enemies = this.enemies.filter(enemy => {
                 if (this.rectCollisionDetector(this.spear, enemy)) {
                     this.score += 100;   
@@ -129,30 +170,15 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
                 return true;  
             });
-        
-            if (this.player.x + this.player.width > canvas.width) {
-                if (this.player.x > canvas.width / 2) {
-                    this.player.x = this.player.x - canvas.width;
-                }
-            } else if (this.player.x < 0) {
-                if (this.player.x + this.player.width < canvas.width / 2) {
-                    this.player.x = this.player.x + canvas.width;
-                }
-            }
-        
-            if (this.player.y < this.player.startY) {
-                const distanceTraveled = Math.floor((this.player.startY - this.player.y) / 2);
-                if (distanceTraveled > 0) {
-                    this.score += distanceTraveled;
-                    this.player.startY = this.player.y;
-                }
-            }
 
-            if (this.player.dy > 0) {
-                this.player.isJumping = false;
-                this.player.isStuck = false;
-            }
-        
+            this.coins = this.coins.filter(coin => {
+                if (this.circleCollisionDetector(this.player, coin)) {
+                    this.score += 50; 
+                    return false; 
+                }
+                return true; 
+            });
+
             for (let i = 0; i < this.platforms.length; i++) {
                 const platform = this.platforms[i];
                 if (this.platformCollisionDetector(this.player, platform)) {
@@ -170,75 +196,21 @@ document.addEventListener("DOMContentLoaded", () => {
                         setTimeout(() => {
                             this.player.isStuck = false; 
                             this.player.isJumping = true; 
-                            this.player.dy = -this.jumpForce * 1.5; 
+                            this.player.dy = -this.player.jumpForce * 1.5; 
                         }, 1000); 
                     } else {
                         if (platform.type === 'breakable') {
                             this.platforms.splice(i, 1); 
                         }
-                        this.player.dy = -this.jumpForce; 
+                        this.player.dy = -this.player.jumpForce; 
                         this.player.isJumping = false; 
                     }
                     break; 
                 }
             }
-            
-            this.coins = this.coins.filter(coin => {
-                if (this.circleCollisionDetector(this.player, coin)) {
-                    this.score += 50; 
-                    return false; 
-                }
-                return true; 
-            });
-
-            this.checkPlayerStatus();
         }
 
-        render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            this.player.render(this.camera);
-            this.spear.render(this.camera);
-            this.platforms.forEach(platform => platform.render(this.camera));
-            this.coins.forEach(coin => coin.render(this.camera)); 
-            this.enemies.forEach(enemy => enemy.render(this.camera)); 
-            this.orbs.forEach(orb => orb.render(this.camera)); 
-            this.hearts.forEach(heart => heart.render(this.camera))
-            this.jetpacks.forEach(jetpack => jetpack.render(this.camera))
-
-            this.renderLives();
-            this.renderScore();
-        }
-
-        renderLives() {
-            for (let i = 0; i < this.lives; i++) {
-                ctx.fillStyle = 'red';
-                ctx.fillRect(10 + (i * 30), 10, 20, 20);
-            }
-        }
-
-        renderScore() {
-            ctx.fillStyle = 'black';
-            ctx.font = '20px Arial';
-            ctx.fillText(`Score: ${this.score}`, canvas.width - 120, 30);
-        }
-
-        //#endregion
-
-        //#region Game Logic
-
-        applyPhysics() {
-            if (this.player.dy < 19 && !this.player.isFlying) {
-                this.player.dy += this.gravity;
-            }
-        }
-
-        updateCamera() {
-            if (this.player.minY < this.camera.y + canvas.height / 2) {
-                this.camera.y = this.player.minY - canvas.height / 2;
-            }
-        }
-
-        checkPlayerStatus() {
+        handlePlayerLifes() {
             this.enemies.forEach(enemy => {
                 if (this.rectCollisionDetector(this.player, enemy)) {
                     this.lives--; 
@@ -258,12 +230,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             });
 
-            this.handlePlayerLife();
-        }
-        
-        handlePlayerLife() {
             if (this.lives <= 0) {
-                this.gameIsActive = false;
                 this.gameOver();
             }
         }
@@ -286,34 +253,6 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        addMovementControls() {
-            const keys = {};
-
-            document.addEventListener('keydown', (event) => {
-                keys[event.key] = true;
-
-                if (keys['ArrowRight'] && keys['ArrowLeft']) {
-                    this.player.dx = 0;
-                } else if (keys['ArrowRight']) {
-                    this.player.dx = this.movementSpeed;
-                } else if (keys['ArrowLeft']) {
-                    this.player.dx = -this.movementSpeed;
-                }
-            });
-
-            document.addEventListener('keyup', (event) => {
-                keys[event.key] = false;
-
-                if (!keys['ArrowRight'] && !keys['ArrowLeft']) {
-                    this.player.dx = 0;
-                } else if (keys['ArrowRight']) {
-                    this.player.dx = this.movementSpeed;
-                } else if (keys['ArrowLeft']) {
-                    this.player.dx = -this.movementSpeed;
-                }
-            });
-        }
-
         findLowestPlatform() {
             const filteredPlatforms = this.platforms.filter(p => p.y <= this.camera.y + 800);
             const lowestPlatformY = Math.max(...filteredPlatforms.map(p => p.y));
@@ -321,6 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         gameOver() {
+            this.gameIsActive = false;
             menu.style.display = 'block';
             menu.querySelector("#info").textContent = "Game Over!";
             startBtn.textContent = "Restart";
@@ -574,6 +514,56 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //#endregion
 
+    //#region Camera Class
+
+    class Camera {
+        constructor() {
+            this.y = 0;
+            this.x = 0;
+            this.width = canvas.width;
+            this.height = canvas.height;
+        };
+
+        update() {
+            if (world.player.minY < this.y + canvas.height / 2) {
+                this.y = world.player.minY - canvas.height / 2;
+            }
+        }
+    }
+
+    //#endregion
+
+    //#region Timer Class
+
+    class Timer {
+        constructor() {
+            this.gameTime = 120;
+            this.frame = 0;
+        }
+
+        update() {
+            this.frame++;
+            if (this.frame % 16 == 0) {
+                this.gameTime--;
+            }
+        }
+
+        render() {
+            ctx.fillStyle = 'black';
+            ctx.font = '15px Arial';
+            
+            const mins = Math.floor(this.gameTime / 60);
+            let secs = this.gameTime - mins * 60;
+            if (secs === 0) {
+                secs = '00';
+            }
+
+            ctx.fillText(`${mins}:${secs}`, canvas.width / 2 - 12.5, 30);
+        }
+    }
+
+    //#endregion
+
     //#region Player Class
 
     class Player {
@@ -584,11 +574,14 @@ document.addEventListener("DOMContentLoaded", () => {
             this.height = 60;
             this.dx = 0;
             this.dy = 0;
+            this.jumpForce = 15;
+            this.movementSpeed = 10;
             this.minY = this.y;
             this.startY = this.y;
             this.isStuck = false; 
             this.stuckTimer = 0;
             this.isFlying = false;
+            this.movementControls();
         }
     
         render(camera) {
@@ -607,6 +600,34 @@ document.addEventListener("DOMContentLoaded", () => {
                 const overflowLeft = Math.abs(screenX);
                 ctx.fillRect(canvas.width - overflowLeft, screenY, overflowLeft, this.height);
             }
+        }
+
+        movementControls() {
+            const keys = {};
+
+            document.addEventListener('keydown', (event) => {
+                keys[event.key] = true;
+
+                if (keys['ArrowRight'] && keys['ArrowLeft']) {
+                    this.dx = 0;
+                } else if (keys['ArrowRight']) {
+                    this.dx = this.movementSpeed;
+                } else if (keys['ArrowLeft']) {
+                    this.dx = -this.movementSpeed;
+                }
+            });
+
+            document.addEventListener('keyup', (event) => {
+                keys[event.key] = false;
+
+                if (!keys['ArrowRight'] && !keys['ArrowLeft']) {
+                    this.dx = 0;
+                } else if (keys['ArrowRight']) {
+                    this.dx = this.movementSpeed;
+                } else if (keys['ArrowLeft']) {
+                    this.dx = -this.movementSpeed;
+                }
+            });
         }
     
         movePlayer() {
@@ -631,6 +652,25 @@ document.addEventListener("DOMContentLoaded", () => {
             } else if (this.x + this.width < 0) {
                 this.x = canvas.width + this.x;
             }
+
+            if (this.x + this.width > canvas.width) {
+                if (this.x > canvas.width / 2) {
+                    this.x = this.x - canvas.width;
+                }
+            } else if (this.x < 0) {
+                if (this.x + this.width < canvas.width / 2) {
+                    this.x = this.x + canvas.width;
+                }
+            }
+        
+            if (this.y < this.startY) {
+                const distanceTraveled = Math.floor((this.startY - this.y) / 2);
+                if (distanceTraveled > 0) {
+                    this.score += distanceTraveled;
+                    this.startY = this.y;
+                }
+            }
+        
         }
     }
 
@@ -723,7 +763,6 @@ document.addEventListener("DOMContentLoaded", () => {
         update() {
             let isStillCollided = false;
 
-            // Tüm platformlarla çarpışma kontrolü
             for (let i = 0; i < world.platforms.length; i++) {
                 const platform = world.platforms[i];
                 if (world.circleCollisionDetector(platform, this) && platform.id !== this.platformId) {
@@ -732,7 +771,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 }
             }
             
-            // Çarpışma durumu güncelleniyor
             this.isCollided = isStillCollided;
 
             if (!this.isReturning) {
