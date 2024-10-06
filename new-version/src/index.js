@@ -726,17 +726,15 @@ document.addEventListener("DOMContentLoaded", () => {
             this.width = 10;
             this.height = 20;
         }
-
+        
         update(x, y) {
             this.x = x - 20;
             this.y = y - 30;
         }
-    
+        
         render(camera) {
-            if (!this.isPickedUp) {
-                ctx.fillStyle = 'green';  
-                ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
-            }
+            ctx.fillStyle = 'green';  
+            ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
         }
     }
 
@@ -763,11 +761,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
         render(camera) {
             ctx.fillStyle = 
-                this.type === 'normal' ? 'blue' :
                 this.type === 'moving' ? 'black' :
                 this.type === 'breakable' ? 'yellow' :
                 this.type === 'trampoline' ? 'orange' : 
-                'gray'; 
+                'blue'; 
             
             ctx.fillRect(this.x - camera.x, this.y - camera.y, this.width, this.height);
         }
@@ -935,12 +932,79 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //#endregion
 
+    function renderInfo(asset) {
+        if (asset.constructor.name === "Player") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Player and Spear', 50, asset.y + 80);
+            ctx.fillText('Kill enemies with spear', 35, asset.y + 90);
+
+        } else if (asset.constructor.name === "Platform") {
+            if (asset.type === "normal") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Normal Platform', 50, asset.y + 30);
+
+            } else if (asset.type === "breakable") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Breakable Platform', 45, asset.y + 30);
+                ctx.fillText('Breaks after one touch', 37.5, asset.y + 40);
+
+            } else if (asset.type === "trampoline") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Trampoline Platform', 45, asset.y + 30);
+                ctx.fillText('Gives jump boost', 50, asset.y + 40);
+
+            } else if (asset.type === "moving") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Moving Platform', 50, asset.y + 40);
+                ctx.fillText('Spawns rocks sometimes', 30, asset.y + 50);
+            }
+        } else if (asset.constructor.name === "Coin") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Coin', 65, asset.y + 30);
+
+        } else if (asset.constructor.name === "Heart") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Heart', 65, asset.y + 40);
+
+        } else if (asset.constructor.name === "Jetpack") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Jetpack', canvas.width - 102, asset.y + 45);
+            ctx.fillText('Boosts player movement', canvas.width - 140, asset.y + 55);
+        } else {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Enemy', canvas.width - 99, asset.y + 80);
+        }
+    }
+
     //#region Handle Menu
 
     const menu = document.querySelector("#menu");
-    const startBtn = menu.querySelector('button');
+    const startBtn = menu.querySelector("#start");
+    const tutorialBtn = menu.querySelector("#tutorial-btn");
     const generalInfo = menu.querySelector("#general-info");
     const gameInfos = menu.querySelectorAll(".game-info");
+    
+    const tutorial = document.querySelector("#tutorial");
+    const menuBtn = tutorial.querySelector("button");
+
     const countdown = document.querySelector("#countdown");
 
     startBtn.addEventListener('click', () => {
@@ -962,6 +1026,60 @@ document.addEventListener("DOMContentLoaded", () => {
                 world.gameLoop(); 
             }
         }, 1000);
+    });
+
+    tutorialBtn.addEventListener('click', () => {
+        menu.classList.add("hidden");
+        tutorial.classList.remove("hidden");
+
+        const playerPreview = new Player({x: 70, y: 110, width: 0});
+        playerPreview.render({y: 0})
+        renderInfo(playerPreview);
+
+        const spearPreview = new Spear (playerPreview.x, playerPreview.y);
+        spearPreview.render({x: 0, y: 0})
+
+        const normalPlatformPreview = new Platform(50, 170, 0, 'normal');
+        normalPlatformPreview.render({x: 0, y: 0})
+        renderInfo(normalPlatformPreview);
+
+        const breakablePlatformPreview = new Platform(50, 230, 1, 'breakable');
+        breakablePlatformPreview.render({x: 0, y: 0})
+        renderInfo(breakablePlatformPreview);
+
+        const trampolinePlatformPreview = new Platform(62.5, 290, 2, 'trampoline');
+        trampolinePlatformPreview.render({x: 0, y: 0})
+        renderInfo(trampolinePlatformPreview);
+
+        const movingPlatformPreview = new Platform(62.5, 350, 3, 'moving');
+        movingPlatformPreview.render({x: 0, y: 0})
+        renderInfo(movingPlatformPreview);
+
+        const orbPreview = new Orb(62.5, 50, 369, 3);
+        orbPreview.render({x: 0, y: 0});
+
+        const coinPreview = new Coin(65, 444, 3);
+        coinPreview.render({x: 0, y: 0});
+        renderInfo(coinPreview);
+
+        const heartPreview = new Heart(65, 509, 3);
+        heartPreview.render({x: 0, y: 0})
+        renderInfo(heartPreview);
+
+        const jetpackPreview = new Jetpack(canvas.width - 97.5, 85, 3);
+        jetpackPreview.render({x: 0, y: 0})
+        renderInfo(jetpackPreview);
+
+        const enemyPreview = new Enemy(canvas.width - 97.5, 170, 3);
+        enemyPreview.render({x: 0, y: 0})
+        renderInfo(enemyPreview);
+
+    })
+
+    menuBtn.addEventListener("click", () => {
+        menu.classList.remove("hidden");
+        tutorial.classList.add("hidden");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
 
     //#endregion
