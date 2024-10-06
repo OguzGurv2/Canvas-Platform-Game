@@ -932,68 +932,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     //#endregion
 
-    function renderInfo(asset) {
-        if (asset.constructor.name === "Player") {
-            ctx.fillStyle = 'black';
-            ctx.font = '10px Arial';
-
-            ctx.fillText('Player and Spear', 50, asset.y + 80);
-            ctx.fillText('Kill enemies with spear', 35, asset.y + 90);
-
-        } else if (asset.constructor.name === "Platform") {
-            if (asset.type === "normal") {
-                ctx.fillStyle = 'black';
-                ctx.font = '10px Arial';
-    
-                ctx.fillText('Normal Platform', 50, asset.y + 30);
-
-            } else if (asset.type === "breakable") {
-                ctx.fillStyle = 'black';
-                ctx.font = '10px Arial';
-    
-                ctx.fillText('Breakable Platform', 45, asset.y + 30);
-                ctx.fillText('Breaks after one touch', 37.5, asset.y + 40);
-
-            } else if (asset.type === "trampoline") {
-                ctx.fillStyle = 'black';
-                ctx.font = '10px Arial';
-    
-                ctx.fillText('Trampoline Platform', 45, asset.y + 30);
-                ctx.fillText('Gives jump boost', 50, asset.y + 40);
-
-            } else if (asset.type === "moving") {
-                ctx.fillStyle = 'black';
-                ctx.font = '10px Arial';
-    
-                ctx.fillText('Moving Platform', 50, asset.y + 40);
-                ctx.fillText('Spawns rocks sometimes', 30, asset.y + 50);
-            }
-        } else if (asset.constructor.name === "Coin") {
-            ctx.fillStyle = 'black';
-            ctx.font = '10px Arial';
-
-            ctx.fillText('Coin', 65, asset.y + 30);
-
-        } else if (asset.constructor.name === "Heart") {
-            ctx.fillStyle = 'black';
-            ctx.font = '10px Arial';
-
-            ctx.fillText('Heart', 65, asset.y + 40);
-
-        } else if (asset.constructor.name === "Jetpack") {
-            ctx.fillStyle = 'black';
-            ctx.font = '10px Arial';
-
-            ctx.fillText('Jetpack', canvas.width - 102, asset.y + 45);
-            ctx.fillText('Boosts player movement', canvas.width - 140, asset.y + 55);
-        } else {
-            ctx.fillStyle = 'black';
-            ctx.font = '10px Arial';
-
-            ctx.fillText('Enemy', canvas.width - 99, asset.y + 80);
-        }
-    }
-
     //#region Handle Menu
 
     const menu = document.querySelector("#menu");
@@ -1081,6 +1019,68 @@ document.addEventListener("DOMContentLoaded", () => {
         tutorial.classList.add("hidden");
         ctx.clearRect(0, 0, canvas.width, canvas.height);
     });
+
+    function renderInfo(asset) {
+        if (asset.constructor.name === "Player") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Player and Spear', 50, asset.y + 80);
+            ctx.fillText('Kill enemies with spear', 35, asset.y + 90);
+
+        } else if (asset.constructor.name === "Platform") {
+            if (asset.type === "normal") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Normal Platform', 50, asset.y + 30);
+
+            } else if (asset.type === "breakable") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Breakable Platform', 45, asset.y + 30);
+                ctx.fillText('Breaks after one touch', 37.5, asset.y + 40);
+
+            } else if (asset.type === "trampoline") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Trampoline Platform', 45, asset.y + 30);
+                ctx.fillText('Gives jump boost', 50, asset.y + 40);
+
+            } else if (asset.type === "moving") {
+                ctx.fillStyle = 'black';
+                ctx.font = '10px Arial';
+    
+                ctx.fillText('Moving Platform', 50, asset.y + 40);
+                ctx.fillText('Spawns rocks sometimes', 30, asset.y + 50);
+            }
+        } else if (asset.constructor.name === "Coin") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Coin', 65, asset.y + 30);
+
+        } else if (asset.constructor.name === "Heart") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Heart', 65, asset.y + 40);
+
+        } else if (asset.constructor.name === "Jetpack") {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Jetpack', canvas.width - 102, asset.y + 45);
+            ctx.fillText('Boosts player movement', canvas.width - 140, asset.y + 55);
+        } else {
+            ctx.fillStyle = 'black';
+            ctx.font = '10px Arial';
+
+            ctx.fillText('Enemy', canvas.width - 99, asset.y + 80);
+        }
+    }
 
     //#endregion
 
