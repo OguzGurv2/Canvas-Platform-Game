@@ -29,6 +29,9 @@ document.addEventListener("DOMContentLoaded", () => {
             this.minSpacing = 30;
             this.lives = 3;
             this.score = 0;
+            this.heightScore = 0;
+            this.enemiesKilled = 0;
+            this.coinsPicked = 0;
             this.player = null;
             this.spear = null;
         }
@@ -48,6 +51,9 @@ document.addEventListener("DOMContentLoaded", () => {
             this.platforms = [];
             this.lives = 3;
             this.score = 0;
+            this.heightScore = 0;
+            this.enemiesKilled = 0;
+            this.coinsPicked = 0;
             this.camera.y = 0;
             this.generatePlatforms();
             this.player = new Player(this.platforms[0]);
@@ -112,7 +118,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         renderLives() {
             for (let i = 0; i < this.lives; i++) {
-                ctx.fillStyle = 'red';
+                ctx.fillStyle = 'pink';
                 ctx.fillRect(10 + (i * 20), 17.5, 15, 15);
             }
         }
@@ -166,6 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.enemies = this.enemies.filter(enemy => {
                 if (this.rectCollisionDetector(this.spear, enemy)) {
                     this.score += 100;   
+                    this.enemiesKilled++;
                     return false;  
                 }
                 return true;  
@@ -174,6 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
             this.coins = this.coins.filter(coin => {
                 if (this.circleCollisionDetector(this.player, coin)) {
                     this.score += 50; 
+                    this.coinsPicked++;
                     return false; 
                 }
                 return true; 
@@ -262,8 +270,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         gameOver() {
             this.gameIsActive = false;
-            menu.style.display = 'block';
-            menu.querySelector("#info").textContent = "Game Over!";
+            menu.classList.remove("hidden");
+            generalInfo.textContent = "Game Over!";
+            gameInfos.forEach(info => {
+                
+                if (info.id == "heightScore") {
+                    info.textContent = `Height Score: ${this.heightScore}`
+                } else if (info.id === "lives") {
+                    info.textContent = `Remaining Lives: ${this.lives} x 100 = ${this.lives * 100}`
+                } else if (info.id === "coinsPicked") {
+                    info.textContent = `Coins Picked: ${this.coinsPicked} x 50 = ${this.coinsPicked * 50}`
+                } else if (info.id === "enemiesKilled") {
+                    info.textContent = `Enemies Killed: ${this.enemiesKilled} x 100 = ${this.enemiesKilled * 100}`
+                } else {
+                    info.textContent = `Total Score: ${this.score + this.lives * 100}`   
+                }
+                info.classList.remove("hidden")
+            })
             startBtn.textContent = "Restart";
         }
 
@@ -684,6 +707,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const distanceTraveled = Math.floor((this.startY - this.y) / 2);
                 if (distanceTraveled > 0) {
                     world.score += distanceTraveled;
+                    world.heightScore += distanceTraveled;
                     this.startY = this.y;
                 }
             }
@@ -914,15 +938,17 @@ document.addEventListener("DOMContentLoaded", () => {
     //#region Handle Menu
 
     const menu = document.querySelector("#menu");
-    const startBtn = menu.querySelector("#start-btn");
+    const startBtn = menu.querySelector('button');
+    const generalInfo = menu.querySelector("#general-info");
+    const gameInfos = menu.querySelectorAll(".game-info");
     const countdown = document.querySelector("#countdown");
 
     startBtn.addEventListener('click', () => {
         world.prepareGame();
-        menu.style.display = 'none';
+        menu.classList.add("hidden");
 
         countdown.textContent = 3;
-        countdown.style.display = "block";
+        countdown.classList.remove("hidden");
         
         let currentCount = 2;
         const interval = setInterval(() => {
@@ -931,7 +957,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (currentCount < 0) {
                 clearInterval(interval);
-                countdown.style.display = "none";
+                countdown.classList.add("hidden");
                 world.gameIsActive = true;
                 world.gameLoop(); 
             }

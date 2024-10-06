@@ -13,6 +13,7 @@
             justify-content: center;
             align-items: center;
         }
+        
         .game-div {
             display: flex;             
             justify-content: center;   
@@ -20,6 +21,7 @@
             height: fit-content;      
             position: relative;      
         }
+
         canvas {
             background: #e0e0e0; 
             display: block; 
@@ -27,16 +29,38 @@
             max-width: 300px;
             max-height: 600px; 
         }
-        .game-div > div {
+
+        .game-div > #menu {
             position: absolute;
             z-index: 1;
             justify-self: center;
             align-self: center;
             display: flex;
+            justify-content: center;
+            align-items: center;
             flex-direction: column;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: red;
+            width: 100%;
+            height: 100%;
         }
+
+        #menu > .game-info {
+            text-align: left;
+            width: 200px;
+            margin: 10px 0px;
+        }
+
+        .game-info > #totalScore {
+            font-size: 25px;
+            margin-bottom: 10px;
+        }
+
+        .hidden {
+            display: none !important; 
+        }
+
         #countdown {
-            display: none;
             position: absolute;
             z-index: 1;
             color: black;
@@ -48,10 +72,15 @@
     <div class="game-div">
         <canvas width="300" height="600"></canvas>
         <div id="menu">
-            <p id="info">Welcome to Platform Jumper!</p>
-            <button id="start-btn">Start</button>
+            <p id="general-info">Welcome to Platform Jumper!</p>
+            <p id="lives" class="game-info hidden"></p>
+            <p id="coinsPicked" class="game-info hidden"></p>
+            <p id="enemiesKilled" class="game-info hidden"></p>
+            <p id="heightScore" class="game-info hidden"></p>
+            <p id="totalScore" class="game-info hidden"></p>
+            <button>Start</button>
         </div>
-        <p id="countdown">3</p>
+        <p id="countdown" class="hidden">3</p>
     </div>
     <script src="src/index.js"></script>
 </body>
