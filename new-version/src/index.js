@@ -1079,6 +1079,8 @@ document.addEventListener("DOMContentLoaded", () => {
             ctx.font = '10px Arial';
 
             ctx.fillText('Enemy', canvas.width - 99, asset.y + 80);
+            ctx.fillText('Press left key to go left', canvas.width - 120, asset.y + 150);
+            ctx.fillText('Press right key to go right', canvas.width - 120, asset.y + 160);
         }
     }
 
